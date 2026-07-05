@@ -1,0 +1,20 @@
+{
+  "name": "auge-movilidad",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Ontología operativa de Auge Movilidad: Convex (objects/links/actions) + Rust (interfaces tipadas)",
+  "workspaces": [
+    "apps/web-dashboard-logistica"
+  ],
+  "scripts": {
+    "dev": "convex dev --local",
+    "codegen": "convex codegen",
+    "typecheck": "tsc -p convex --noEmit"
+  },
+  "dependencies": {
+    "convex": "^1.42.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0"
+  }
+}

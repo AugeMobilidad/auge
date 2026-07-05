@@ -1,0 +1,9 @@
+.jj/
+node_modules/
+target/
+.env
+.env.local
+.convex/
+convex/_generated/
+dist/
+*.log
