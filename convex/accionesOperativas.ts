@@ -27,7 +27,12 @@ import {
   requerirPermiso,
   resolverActorTelegram,
 } from "./seguridad";
-import { hoyISO, ventanaDeServicio, ventanasSeSolapan } from "./lib/horarios";
+import {
+  hoyISO,
+  sumarDiasISO,
+  ventanaDeServicio,
+  ventanasSeSolapan,
+} from "./lib/horarios";
 // Nota: los validadores de args van SIEMPRE inline (sin consts compartidos ni
 // spreads) porque convex-typegen parsea estos archivos estáticamente.
 import {
@@ -1366,10 +1371,7 @@ function estadoSegunVencimiento(fechaVencimiento?: string): "vigente" | "porVenc
   if (fechaVencimiento === undefined) return "vigente";
   const hoy = hoyISO();
   if (fechaVencimiento < hoy) return "vencido";
-  const limite = new Date(Date.now() + DIAS_POR_VENCER * 86400_000)
-    .toISOString()
-    .slice(0, 10);
-  return fechaVencimiento <= limite ? "porVencer" : "vigente";
+  return fechaVencimiento <= sumarDiasISO(hoy, DIAS_POR_VENCER) ? "porVencer" : "vigente";
 }
 
 export const registrarDocumentoCumplimiento = mutation({
