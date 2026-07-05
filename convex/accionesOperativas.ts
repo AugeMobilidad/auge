@@ -32,12 +32,15 @@ import {
   tipoServicioValidator,
   tipoVehiculoValidator,
 } from "./schema";
+import { hoyISO, ventanaDeServicio, ventanasSeSolapan } from "./lib/horarios";
+import {
+  asignacionActivaDeServicio,
+  checklistAprobadoDeServicio,
+} from "./lib/consultas";
 
 // ---------------------------------------------------------------------------
 // Helpers generales
 // ---------------------------------------------------------------------------
-
-const hoyISO = () => new Date().toISOString().slice(0, 10);
 
 const ACTOR_SISTEMA: ActorAuditoria = { actorTipo: "sistema", origen: "convex" };
 
@@ -83,23 +86,6 @@ async function transicionarServicio(
   await ctx.db.patch(servicio._id, { estado: nuevoEstado });
 }
 
-async function asignacionActivaDeServicio(
-  ctx: MutationCtx,
-  servicioId: Id<"serviciosTransporte">,
-  estados: Array<Doc<"asignacionesServicio">["estado"]>,
-): Promise<Doc<"asignacionesServicio"> | null> {
-  for (const estado of estados) {
-    const encontrada = await ctx.db
-      .query("asignacionesServicio")
-      .withIndex("by_servicio_estado", (q) =>
-        q.eq("servicioId", servicioId).eq("estado", estado),
-      )
-      .first();
-    if (encontrada !== null) return encontrada;
-  }
-  return null;
-}
-
 /** Motivos por los que el par vehículo/conductor NO cumple para operar. */
 async function motivosIncumplimiento(
   ctx: MutationCtx,
@@ -136,23 +122,6 @@ async function motivosIncumplimiento(
   return motivos;
 }
 
-// Solapamiento horario aproximado para detectar conflictos de asignación.
-const DURACION_ASUMIDA_MIN = 120;
-
-function aMinutos(hora: string): number {
-  const [h, m] = hora.split(":").map(Number);
-  return h * 60 + m;
-}
-
-function ventanaDeServicio(servicio: Doc<"serviciosTransporte">): [number, number] {
-  const inicio = aMinutos(servicio.horaInicioProgramada);
-  const fin =
-    servicio.horaFinProgramada !== undefined
-      ? aMinutos(servicio.horaFinProgramada)
-      : inicio + DURACION_ASUMIDA_MIN;
-  return [inicio, fin];
-}
-
 async function tieneConflictoDeAgenda(
   ctx: MutationCtx,
   servicio: Doc<"serviciosTransporte">,
@@ -169,15 +138,14 @@ async function tieneConflictoDeAgenda(
       ),
     )
     .collect();
-  const [inicio, fin] = ventanaDeServicio(servicio);
+  const ventana = ventanaDeServicio(servicio);
   for (const asignacion of confirmadas) {
     if (asignacion.servicioId === servicio._id) continue;
     const otro = await ctx.db.get(asignacion.servicioId);
     if (otro === null || otro.fechaProgramada !== servicio.fechaProgramada) continue;
     if (otro.estado === "cancelado" || otro.estado === "fallido" || otro.estado === "completado")
       continue;
-    const [otroInicio, otroFin] = ventanaDeServicio(otro);
-    if (inicio < otroFin && otroInicio < fin) return true;
+    if (ventanasSeSolapan(ventana, ventanaDeServicio(otro))) return true;
   }
   return false;
 }
@@ -464,21 +432,6 @@ async function registrarChecklistHelper(
     detalle: `resultado: ${resultado}`,
   });
   return checklistId;
-}
-
-async function checklistAprobadoDeServicio(
-  ctx: MutationCtx,
-  servicioId: Id<"serviciosTransporte">,
-): Promise<Doc<"checklistsPreoperativos"> | null> {
-  const checklists = await ctx.db
-    .query("checklistsPreoperativos")
-    .withIndex("by_servicio", (q) => q.eq("servicioId", servicioId))
-    .collect();
-  return (
-    checklists
-      .filter((c) => c.resultado === "aprobado" || c.resultado === "aprobadoConObservaciones")
-      .sort((a, b) => b.fecha - a.fecha)[0] ?? null
-  );
 }
 
 async function iniciarServicioHelper(
