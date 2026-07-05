@@ -8,50 +8,12 @@
  * - Horas del día en "HH:mm": `v.string()`.
  * - Relaciones con `v.id("tabla")`; cuando la relación cambia en el tiempo,
  *   se usa una tabla de link con fechaDesde/fechaHasta en vez de sobrescribir.
+ * - Los validadores van SIEMPRE inline (sin consts compartidos ni spreads):
+ *   `convex-typegen` parsea este archivo estáticamente y solo reconoce
+ *   llamadas directas `v.*(...)` en cada columna.
  */
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
-
-// ---------------------------------------------------------------------------
-// Validadores compartidos
-// ---------------------------------------------------------------------------
-
-export const geoValidator = v.object({ lat: v.number(), lng: v.number() });
-
-export const tipoServicioValidator = v.union(
-  v.literal("puntual"),
-  v.literal("recurrente"),
-  v.literal("gestorValidado"),
-  v.literal("evento"),
-  v.literal("comunidad"),
-);
-
-export const tipoVehiculoValidator = v.union(
-  v.literal("automovil"),
-  v.literal("van"),
-  v.literal("buseta"),
-  v.literal("bus"),
-  v.literal("camioneta"),
-  v.literal("otro"),
-);
-
-export const estadoServicioValidator = v.union(
-  v.literal("programado"),
-  v.literal("asignado"),
-  v.literal("enPreparacion"),
-  v.literal("enCurso"),
-  v.literal("completado"),
-  v.literal("cancelado"),
-  v.literal("fallido"),
-);
-
-export const origenAppValidator = v.union(
-  v.literal("convex"),
-  v.literal("rustInterface"),
-  v.literal("webDashboard"),
-  v.literal("telegramBot"),
-  v.literal("sistema"),
-);
 
 export default defineSchema({
   // =========================================================================
@@ -81,7 +43,13 @@ export default defineSchema({
 
   programasMovilidad: defineTable({
     clienteId: v.id("clientes"),
-    tipoServicio: tipoServicioValidator,
+    tipoServicio: v.union(
+      v.literal("puntual"),
+      v.literal("recurrente"),
+      v.literal("gestorValidado"),
+      v.literal("evento"),
+      v.literal("comunidad"),
+    ),
     nombre: v.string(),
     descripcion: v.string(),
     fechaInicio: v.string(), // YYYY-MM-DD
@@ -107,13 +75,28 @@ export default defineSchema({
   solicitudesServicio: defineTable({
     clienteId: v.id("clientes"),
     programaId: v.optional(v.id("programasMovilidad")),
-    tipoServicio: tipoServicioValidator,
+    tipoServicio: v.union(
+      v.literal("puntual"),
+      v.literal("recurrente"),
+      v.literal("gestorValidado"),
+      v.literal("evento"),
+      v.literal("comunidad"),
+    ),
     fechaSolicitud: v.number(), // epoch ms
     origenTexto: v.optional(v.string()),
     destinoTexto: v.optional(v.string()),
     fechaHoraRequerida: v.optional(v.number()), // epoch ms
     cantidadPasajerosEstimada: v.optional(v.number()),
-    tipoVehiculoRequerido: v.optional(tipoVehiculoValidator),
+    tipoVehiculoRequerido: v.optional(
+      v.union(
+        v.literal("automovil"),
+        v.literal("van"),
+        v.literal("buseta"),
+        v.literal("bus"),
+        v.literal("camioneta"),
+        v.literal("otro"),
+      ),
+    ),
     requisitosEspeciales: v.optional(v.string()),
     estado: v.union(
       v.literal("recibida"),
@@ -129,7 +112,13 @@ export default defineSchema({
   operaciones: defineTable({
     programaId: v.id("programasMovilidad"),
     nombre: v.string(),
-    tipoOperacion: tipoServicioValidator,
+    tipoOperacion: v.union(
+      v.literal("puntual"),
+      v.literal("recurrente"),
+      v.literal("gestorValidado"),
+      v.literal("evento"),
+      v.literal("comunidad"),
+    ),
     ciudadBase: v.optional(v.string()),
     zonaOperacion: v.optional(v.string()),
     fechaInicio: v.string(), // YYYY-MM-DD
@@ -161,12 +150,27 @@ export default defineSchema({
     horaFinProgramada: v.optional(v.string()),
     origenTexto: v.string(),
     destinoTexto: v.string(),
-    origenGeo: v.optional(geoValidator),
-    destinoGeo: v.optional(geoValidator),
+    origenGeo: v.optional(v.object({ lat: v.number(), lng: v.number() })),
+    destinoGeo: v.optional(v.object({ lat: v.number(), lng: v.number() })),
     cantidadPasajerosProgramada: v.optional(v.number()),
     cantidadPasajerosReal: v.optional(v.number()),
-    tipoVehiculoRequerido: tipoVehiculoValidator,
-    estado: estadoServicioValidator,
+    tipoVehiculoRequerido: v.union(
+      v.literal("automovil"),
+      v.literal("van"),
+      v.literal("buseta"),
+      v.literal("bus"),
+      v.literal("camioneta"),
+      v.literal("otro"),
+    ),
+    estado: v.union(
+      v.literal("programado"),
+      v.literal("asignado"),
+      v.literal("enPreparacion"),
+      v.literal("enCurso"),
+      v.literal("completado"),
+      v.literal("cancelado"),
+      v.literal("fallido"),
+    ),
     prioridad: v.union(
       v.literal("normal"),
       v.literal("alta"),
@@ -217,7 +221,7 @@ export default defineSchema({
     nombre: v.string(),
     orden: v.number(),
     direccionTexto: v.string(),
-    geo: v.optional(geoValidator),
+    geo: v.optional(v.object({ lat: v.number(), lng: v.number() })),
     ventanaInicio: v.optional(v.string()), // HH:mm
     ventanaFin: v.optional(v.string()),
     activa: v.boolean(),
@@ -320,7 +324,14 @@ export default defineSchema({
   vehiculos: defineTable({
     placa: v.string(),
     propietarioId: v.id("propietarios"),
-    tipoVehiculo: tipoVehiculoValidator,
+    tipoVehiculo: v.union(
+      v.literal("automovil"),
+      v.literal("van"),
+      v.literal("buseta"),
+      v.literal("bus"),
+      v.literal("camioneta"),
+      v.literal("otro"),
+    ),
     marca: v.string(),
     linea: v.string(),
     modelo: v.number(), // año del modelo
@@ -451,7 +462,13 @@ export default defineSchema({
     entidadTipo: v.string(),
     entidadId: v.optional(v.string()),
     timestamp: v.number(),
-    origen: origenAppValidator,
+    origen: v.union(
+      v.literal("convex"),
+      v.literal("rustInterface"),
+      v.literal("webDashboard"),
+      v.literal("telegramBot"),
+      v.literal("sistema"),
+    ),
     resultado: v.union(
       v.literal("ok"),
       v.literal("error"),

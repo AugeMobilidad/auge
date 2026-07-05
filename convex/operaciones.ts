@@ -22,7 +22,6 @@ import {
   ventanaDeServicio,
   ventanasSeSolapan,
 } from "./lib/horarios";
-import { tipoVehiculoValidator } from "./schema";
 
 const TOLERANCIA_PUNTUALIDAD_MS = 10 * 60_000;
 
@@ -162,7 +161,16 @@ export const flotaDisponible = query({
     fecha: v.string(),
     horaInicio: v.string(),
     horaFin: v.optional(v.string()),
-    tipoVehiculo: v.optional(tipoVehiculoValidator),
+    tipoVehiculo: v.optional(
+      v.union(
+        v.literal("automovil"),
+        v.literal("van"),
+        v.literal("buseta"),
+        v.literal("bus"),
+        v.literal("camioneta"),
+        v.literal("otro"),
+      ),
+    ),
   },
   returns: v.array(
     v.object({
@@ -224,7 +232,16 @@ export const conductoresDisponibles = query({
     fecha: v.string(),
     horaInicio: v.string(),
     horaFin: v.optional(v.string()),
-    tipoVehiculo: v.optional(tipoVehiculoValidator),
+    tipoVehiculo: v.optional(
+      v.union(
+        v.literal("automovil"),
+        v.literal("van"),
+        v.literal("buseta"),
+        v.literal("bus"),
+        v.literal("camioneta"),
+        v.literal("otro"),
+      ),
+    ),
   },
   returns: v.array(
     v.object({

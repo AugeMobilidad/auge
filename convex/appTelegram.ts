@@ -84,10 +84,8 @@ async function conductorDesdeIdentidad(
   return null;
 }
 
-const identidadArgs = {
-  telegramUserId: v.optional(v.string()),
-  conductorId: v.optional(v.id("conductores")),
-};
+// Nota: los args de cada query van inline (sin consts compartidos ni spreads)
+// porque convex-typegen parsea estos archivos estáticamente.
 
 // ---------------------------------------------------------------------------
 // Servicios del conductor
@@ -107,7 +105,10 @@ const servicioCortoValidator = v.object({
 });
 
 export const telegramServiciosDeConductor = query({
-  args: identidadArgs,
+  args: {
+    telegramUserId: v.optional(v.string()),
+    conductorId: v.optional(v.id("conductores")),
+  },
   returns: v.array(servicioCortoValidator),
   handler: async (ctx, args) => {
     const conductor = await conductorDesdeIdentidad(ctx, args);
@@ -158,7 +159,8 @@ export const telegramServiciosDeConductor = query({
 
 export const telegramDetalleServicio = query({
   args: {
-    ...identidadArgs,
+    telegramUserId: v.optional(v.string()),
+    conductorId: v.optional(v.id("conductores")),
     servicioId: v.id("serviciosTransporte"),
   },
   returns: v.union(
@@ -239,7 +241,10 @@ export const telegramDetalleServicio = query({
 // ---------------------------------------------------------------------------
 
 export const telegramIncidenciasAbiertas = query({
-  args: identidadArgs,
+  args: {
+    telegramUserId: v.optional(v.string()),
+    conductorId: v.optional(v.id("conductores")),
+  },
   returns: v.array(
     v.object({
       incidenciaId: v.id("incidencias"),

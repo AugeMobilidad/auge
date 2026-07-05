@@ -27,12 +27,9 @@ import {
   requerirPermiso,
   resolverActorTelegram,
 } from "./seguridad";
-import {
-  geoValidator,
-  tipoServicioValidator,
-  tipoVehiculoValidator,
-} from "./schema";
 import { hoyISO, ventanaDeServicio, ventanasSeSolapan } from "./lib/horarios";
+// Nota: los validadores de args van SIEMPRE inline (sin consts compartidos ni
+// spreads) porque convex-typegen parsea estos archivos estáticamente.
 import {
   asignacionActivaDeServicio,
   checklistAprobadoDeServicio,
@@ -739,11 +736,6 @@ async function resolverConductorActor(
   return { conductor, actor: actorConductor(conductor._id) };
 }
 
-const identidadConductorArgs = {
-  telegramUserId: v.optional(v.string()),
-  conductorId: v.optional(v.id("conductores")),
-};
-
 // ---------------------------------------------------------------------------
 // Mutations — creación de objetos comerciales/operativos
 // ---------------------------------------------------------------------------
@@ -783,7 +775,13 @@ export const crearCliente = mutation({
 export const crearProgramaMovilidad = mutation({
   args: {
     clienteId: v.id("clientes"),
-    tipoServicio: tipoServicioValidator,
+    tipoServicio: v.union(
+      v.literal("puntual"),
+      v.literal("recurrente"),
+      v.literal("gestorValidado"),
+      v.literal("evento"),
+      v.literal("comunidad"),
+    ),
     nombre: v.string(),
     descripcion: v.string(),
     fechaInicio: v.string(),
@@ -816,12 +814,27 @@ export const registrarSolicitudServicio = mutation({
   args: {
     clienteId: v.id("clientes"),
     programaId: v.optional(v.id("programasMovilidad")),
-    tipoServicio: tipoServicioValidator,
+    tipoServicio: v.union(
+      v.literal("puntual"),
+      v.literal("recurrente"),
+      v.literal("gestorValidado"),
+      v.literal("evento"),
+      v.literal("comunidad"),
+    ),
     origenTexto: v.optional(v.string()),
     destinoTexto: v.optional(v.string()),
     fechaHoraRequerida: v.optional(v.number()),
     cantidadPasajerosEstimada: v.optional(v.number()),
-    tipoVehiculoRequerido: v.optional(tipoVehiculoValidator),
+    tipoVehiculoRequerido: v.optional(
+      v.union(
+        v.literal("automovil"),
+        v.literal("van"),
+        v.literal("buseta"),
+        v.literal("bus"),
+        v.literal("camioneta"),
+        v.literal("otro"),
+      ),
+    ),
     requisitosEspeciales: v.optional(v.string()),
   },
   returns: v.id("solicitudesServicio"),
@@ -939,7 +952,13 @@ export const crearOperacion = mutation({
   args: {
     programaId: v.id("programasMovilidad"),
     nombre: v.string(),
-    tipoOperacion: tipoServicioValidator,
+    tipoOperacion: v.union(
+      v.literal("puntual"),
+      v.literal("recurrente"),
+      v.literal("gestorValidado"),
+      v.literal("evento"),
+      v.literal("comunidad"),
+    ),
     ciudadBase: v.optional(v.string()),
     zonaOperacion: v.optional(v.string()),
     fechaInicio: v.string(),
@@ -1017,7 +1036,7 @@ export const crearParada = mutation({
     nombre: v.string(),
     orden: v.number(),
     direccionTexto: v.string(),
-    geo: v.optional(geoValidator),
+    geo: v.optional(v.object({ lat: v.number(), lng: v.number() })),
     ventanaInicio: v.optional(v.string()),
     ventanaFin: v.optional(v.string()),
   },
@@ -1047,10 +1066,17 @@ export const programarServicio = mutation({
     horaFinProgramada: v.optional(v.string()),
     origenTexto: v.string(),
     destinoTexto: v.string(),
-    origenGeo: v.optional(geoValidator),
-    destinoGeo: v.optional(geoValidator),
+    origenGeo: v.optional(v.object({ lat: v.number(), lng: v.number() })),
+    destinoGeo: v.optional(v.object({ lat: v.number(), lng: v.number() })),
     cantidadPasajerosProgramada: v.optional(v.number()),
-    tipoVehiculoRequerido: tipoVehiculoValidator,
+    tipoVehiculoRequerido: v.union(
+      v.literal("automovil"),
+      v.literal("van"),
+      v.literal("buseta"),
+      v.literal("bus"),
+      v.literal("camioneta"),
+      v.literal("otro"),
+    ),
     prioridad: v.optional(
       v.union(v.literal("normal"), v.literal("alta"), v.literal("critica")),
     ),
@@ -1120,7 +1146,7 @@ export const registrarChecklistPreoperativo = mutation({
 export const iniciarServicio = mutation({
   args: {
     servicioId: v.id("serviciosTransporte"),
-    geo: v.optional(geoValidator),
+    geo: v.optional(v.object({ lat: v.number(), lng: v.number() })),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -1233,7 +1259,7 @@ export const cerrarServicio = mutation({
     servicioId: v.id("serviciosTransporte"),
     notaCierre: v.optional(v.string()),
     cantidadPasajerosReal: v.optional(v.number()),
-    geo: v.optional(geoValidator),
+    geo: v.optional(v.object({ lat: v.number(), lng: v.number() })),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -1334,19 +1360,6 @@ export const marcarLiquidacionPagada = mutation({
   },
 });
 
-const entidadDocumentoArgs = {
-  entidadTipo: v.union(
-    v.literal("conductor"),
-    v.literal("vehiculo"),
-    v.literal("propietario"),
-    v.literal("gestor"),
-  ),
-  conductorId: v.optional(v.id("conductores")),
-  vehiculoId: v.optional(v.id("vehiculos")),
-  propietarioId: v.optional(v.id("propietarios")),
-  gestorId: v.optional(v.id("gestoresValidados")),
-};
-
 const DIAS_POR_VENCER = 30;
 
 function estadoSegunVencimiento(fechaVencimiento?: string): "vigente" | "porVencer" | "vencido" {
@@ -1361,7 +1374,16 @@ function estadoSegunVencimiento(fechaVencimiento?: string): "vigente" | "porVenc
 
 export const registrarDocumentoCumplimiento = mutation({
   args: {
-    ...entidadDocumentoArgs,
+    entidadTipo: v.union(
+      v.literal("conductor"),
+      v.literal("vehiculo"),
+      v.literal("propietario"),
+      v.literal("gestor"),
+    ),
+    conductorId: v.optional(v.id("conductores")),
+    vehiculoId: v.optional(v.id("vehiculos")),
+    propietarioId: v.optional(v.id("propietarios")),
+    gestorId: v.optional(v.id("gestoresValidados")),
     tipoDocumento: v.union(
       v.literal("licencia"),
       v.literal("soat"),
@@ -1538,6 +1560,142 @@ export const evaluarDesempeno = mutation({
       detalle: `${args.entidadTipo}: ${args.resultado}`,
     });
     return evaluacionId;
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Mutations — flota de gestor validado (links históricos)
+// ---------------------------------------------------------------------------
+
+export const vincularVehiculoAGestor = mutation({
+  args: {
+    gestorId: v.id("gestoresValidados"),
+    vehiculoId: v.id("vehiculos"),
+  },
+  returns: v.id("vehiculosGestor"),
+  handler: async (ctx, args) => {
+    const gestor = await ctx.db.get(args.gestorId);
+    const vehiculo = await ctx.db.get(args.vehiculoId);
+    if (gestor === null) throw new Error("Gestor no encontrado");
+    if (gestor.estado !== "validado") throw new Error(`El gestor está ${gestor.estado}`);
+    if (vehiculo === null) throw new Error("Vehículo no encontrado");
+    const activos = await ctx.db
+      .query("vehiculosGestor")
+      .withIndex("by_gestor_estado", (q) =>
+        q.eq("gestorId", args.gestorId).eq("estado", "activo"),
+      )
+      .collect();
+    if (activos.some((vinculo) => vinculo.vehiculoId === args.vehiculoId)) {
+      throw new Error(`El vehículo ${vehiculo.placa} ya está en la flota del gestor`);
+    }
+    const vinculoId = await ctx.db.insert("vehiculosGestor", {
+      gestorId: args.gestorId,
+      vehiculoId: args.vehiculoId,
+      fechaDesde: hoyISO(),
+      estado: "activo",
+    });
+    await registrarAuditoria(ctx, ACTOR_SISTEMA, {
+      accion: "gestor.vehiculoVinculado",
+      entidadTipo: "gestoresValidados",
+      entidadId: args.gestorId,
+      resultado: "ok",
+      detalle: vehiculo.placa,
+    });
+    return vinculoId;
+  },
+});
+
+export const desvincularVehiculoDeGestor = mutation({
+  args: {
+    gestorId: v.id("gestoresValidados"),
+    vehiculoId: v.id("vehiculos"),
+    motivo: v.optional(v.string()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const activos = await ctx.db
+      .query("vehiculosGestor")
+      .withIndex("by_gestor_estado", (q) =>
+        q.eq("gestorId", args.gestorId).eq("estado", "activo"),
+      )
+      .collect();
+    const vinculo = activos.find((va) => va.vehiculoId === args.vehiculoId);
+    if (vinculo === undefined) throw new Error("El vehículo no está activo en esa flota");
+    await ctx.db.patch(vinculo._id, { estado: "retirado", fechaHasta: hoyISO() });
+    await registrarAuditoria(ctx, ACTOR_SISTEMA, {
+      accion: "gestor.vehiculoDesvinculado",
+      entidadTipo: "gestoresValidados",
+      entidadId: args.gestorId,
+      resultado: "ok",
+      detalle: args.motivo,
+    });
+    return null;
+  },
+});
+
+export const vincularConductorAGestor = mutation({
+  args: {
+    gestorId: v.id("gestoresValidados"),
+    conductorId: v.id("conductores"),
+  },
+  returns: v.id("conductoresGestor"),
+  handler: async (ctx, args) => {
+    const gestor = await ctx.db.get(args.gestorId);
+    const conductor = await ctx.db.get(args.conductorId);
+    if (gestor === null) throw new Error("Gestor no encontrado");
+    if (gestor.estado !== "validado") throw new Error(`El gestor está ${gestor.estado}`);
+    if (conductor === null) throw new Error("Conductor no encontrado");
+    const activos = await ctx.db
+      .query("conductoresGestor")
+      .withIndex("by_gestor_estado", (q) =>
+        q.eq("gestorId", args.gestorId).eq("estado", "activo"),
+      )
+      .collect();
+    if (activos.some((vinculo) => vinculo.conductorId === args.conductorId)) {
+      throw new Error(`El conductor ${conductor.nombre} ya está vinculado al gestor`);
+    }
+    const vinculoId = await ctx.db.insert("conductoresGestor", {
+      gestorId: args.gestorId,
+      conductorId: args.conductorId,
+      fechaDesde: hoyISO(),
+      estado: "activo",
+    });
+    await registrarAuditoria(ctx, ACTOR_SISTEMA, {
+      accion: "gestor.conductorVinculado",
+      entidadTipo: "gestoresValidados",
+      entidadId: args.gestorId,
+      resultado: "ok",
+      detalle: conductor.nombre,
+    });
+    return vinculoId;
+  },
+});
+
+export const desvincularConductorDeGestor = mutation({
+  args: {
+    gestorId: v.id("gestoresValidados"),
+    conductorId: v.id("conductores"),
+    motivo: v.optional(v.string()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const activos = await ctx.db
+      .query("conductoresGestor")
+      .withIndex("by_gestor_estado", (q) =>
+        q.eq("gestorId", args.gestorId).eq("estado", "activo"),
+      )
+      .collect();
+    const vinculo = activos.find((va) => va.conductorId === args.conductorId);
+    if (vinculo === undefined) throw new Error("El conductor no está activo con ese gestor");
+    await ctx.db.patch(vinculo._id, { estado: "retirado", fechaHasta: hoyISO() });
+    await registrarAuditoria(ctx, ACTOR_SISTEMA, {
+      accion: "gestor.conductorDesvinculado",
+      entidadTipo: "gestoresValidados",
+      entidadId: args.gestorId,
+      resultado: "ok",
+      detalle: args.motivo,
+    });
+    return null;
   },
 });
 
@@ -1788,7 +1946,8 @@ export const actualizarUltimoComandoTelegram = mutation({
 
 export const conductorConfirmarAsignacion = mutation({
   args: {
-    ...identidadConductorArgs,
+    telegramUserId: v.optional(v.string()),
+    conductorId: v.optional(v.id("conductores")),
     asignacionId: v.id("asignacionesServicio"),
   },
   returns: v.null(),
@@ -1813,7 +1972,8 @@ export const conductorConfirmarAsignacion = mutation({
 
 export const conductorRechazarAsignacion = mutation({
   args: {
-    ...identidadConductorArgs,
+    telegramUserId: v.optional(v.string()),
+    conductorId: v.optional(v.id("conductores")),
     asignacionId: v.id("asignacionesServicio"),
     motivo: v.string(),
   },
@@ -1846,7 +2006,8 @@ export const conductorRechazarAsignacion = mutation({
 
 export const conductorEnviarChecklist = mutation({
   args: {
-    ...identidadConductorArgs,
+    telegramUserId: v.optional(v.string()),
+    conductorId: v.optional(v.id("conductores")),
     servicioId: v.id("serviciosTransporte"),
     combustibleOk: v.boolean(),
     llantasOk: v.boolean(),
@@ -1881,9 +2042,10 @@ export const conductorEnviarChecklist = mutation({
 
 export const conductorIniciarServicio = mutation({
   args: {
-    ...identidadConductorArgs,
+    telegramUserId: v.optional(v.string()),
+    conductorId: v.optional(v.id("conductores")),
     servicioId: v.id("serviciosTransporte"),
-    geo: v.optional(geoValidator),
+    geo: v.optional(v.object({ lat: v.number(), lng: v.number() })),
     fuente: v.optional(v.union(v.literal("telegram"), v.literal("appConductor"))),
   },
   returns: v.null(),
@@ -1901,7 +2063,8 @@ export const conductorIniciarServicio = mutation({
 
 export const conductorReportarUbicacion = mutation({
   args: {
-    ...identidadConductorArgs,
+    telegramUserId: v.optional(v.string()),
+    conductorId: v.optional(v.id("conductores")),
     servicioId: v.id("serviciosTransporte"),
     lat: v.number(),
     lng: v.number(),
@@ -1933,7 +2096,8 @@ export const conductorReportarUbicacion = mutation({
 
 export const conductorRegistrarEvidencia = mutation({
   args: {
-    ...identidadConductorArgs,
+    telegramUserId: v.optional(v.string()),
+    conductorId: v.optional(v.id("conductores")),
     servicioId: v.id("serviciosTransporte"),
     tipo: v.union(
       v.literal("foto"),
@@ -1963,7 +2127,8 @@ export const conductorRegistrarEvidencia = mutation({
 
 export const conductorReportarIncidencia = mutation({
   args: {
-    ...identidadConductorArgs,
+    telegramUserId: v.optional(v.string()),
+    conductorId: v.optional(v.id("conductores")),
     servicioId: v.id("serviciosTransporte"),
     tipo: v.union(
       v.literal("retraso"),
@@ -1999,11 +2164,12 @@ export const conductorReportarIncidencia = mutation({
 
 export const conductorCerrarServicio = mutation({
   args: {
-    ...identidadConductorArgs,
+    telegramUserId: v.optional(v.string()),
+    conductorId: v.optional(v.id("conductores")),
     servicioId: v.id("serviciosTransporte"),
     notaCierre: v.optional(v.string()),
     cantidadPasajerosReal: v.optional(v.number()),
-    geo: v.optional(geoValidator),
+    geo: v.optional(v.object({ lat: v.number(), lng: v.number() })),
     fuente: v.optional(v.union(v.literal("telegram"), v.literal("appConductor"))),
   },
   returns: v.null(),
@@ -2039,10 +2205,17 @@ export const dashboardCrearServicio = mutation({
     horaFinProgramada: v.optional(v.string()),
     origenTexto: v.string(),
     destinoTexto: v.string(),
-    origenGeo: v.optional(geoValidator),
-    destinoGeo: v.optional(geoValidator),
+    origenGeo: v.optional(v.object({ lat: v.number(), lng: v.number() })),
+    destinoGeo: v.optional(v.object({ lat: v.number(), lng: v.number() })),
     cantidadPasajerosProgramada: v.optional(v.number()),
-    tipoVehiculoRequerido: tipoVehiculoValidator,
+    tipoVehiculoRequerido: v.union(
+      v.literal("automovil"),
+      v.literal("van"),
+      v.literal("buseta"),
+      v.literal("bus"),
+      v.literal("camioneta"),
+      v.literal("otro"),
+    ),
     prioridad: v.optional(
       v.union(v.literal("normal"), v.literal("alta"), v.literal("critica")),
     ),
