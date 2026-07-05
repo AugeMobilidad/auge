@@ -8,4 +8,7 @@ pub mod client;
 pub mod convex_types;
 pub mod interfaces;
 
-pub use client::{AugeClient, AugeError};
+pub use client::{AugeClient, AugeError, AugeResult};
+/// Re-export para que las apps construyan/lean valores JSON sin depender
+/// directamente de serde_json (los tipos generados usan esta misma versión).
+pub use convex_typegen::serde_json;
