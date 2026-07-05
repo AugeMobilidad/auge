@@ -1,4 +1,5 @@
 .jj/
+.claude/
 node_modules/
 target/
 .env

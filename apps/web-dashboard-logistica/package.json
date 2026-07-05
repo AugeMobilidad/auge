@@ -1,0 +1,9 @@
+{
+  "name": "@auge/web-dashboard-logistica",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Shell del futuro dashboard web de logística y operaciones de Auge Movilidad (sin UI todavía)",
+  "scripts": {
+    "placeholder": "echo 'Sin UI todavía: ver src/contracts/README.md'"
+  }
+}
