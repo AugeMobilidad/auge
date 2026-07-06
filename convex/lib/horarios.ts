@@ -11,7 +11,17 @@ import type { Doc } from "../_generated/dataModel";
 export const DURACION_ASUMIDA_MIN = 120;
 
 /** Offset fijo de Colombia respecto a UTC, en milisegundos. */
-const OFFSET_BOGOTA_MS = -5 * 3600_000;
+export const OFFSET_BOGOTA_MS = -5 * 3600_000;
+
+/** Fecha "YYYY-MM-DD" de un instante epoch ms, en hora de Colombia. */
+export function fechaISODeInstante(epochMs: number): string {
+  return new Date(epochMs + OFFSET_BOGOTA_MS).toISOString().slice(0, 10);
+}
+
+/** Hora "HH:mm" de un instante epoch ms, en hora de Colombia. */
+export function horaDeInstante(epochMs: number): string {
+  return new Date(epochMs + OFFSET_BOGOTA_MS).toISOString().slice(11, 16);
+}
 
 /** Fecha de calendario de HOY en hora de Colombia. */
 export const hoyISO = () =>

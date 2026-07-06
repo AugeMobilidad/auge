@@ -130,19 +130,16 @@ export const puntualidadVerificable = query({
     const filas = [];
     for (const servicio of servicios) {
       if (servicio.estado === "programado" || servicio.estado === "cancelado") continue;
-      const gps = await ctx.db
-        .query("seguimientosGps")
-        .withIndex("by_servicio_timestamp", (q) => q.eq("servicioId", servicio._id))
-        .collect();
-      const hitoInicio = gps.find((h) => h.evento === "inicio");
+      // Usa el inicioRealTimestamp denormalizado (estampado al iniciar el
+      // servicio) en vez de escanear seguimientosGps punto por punto.
+      const inicioReal = servicio.inicioRealTimestamp;
       const contexto = await contextoDeOperacion(ctx, servicio.operacionId);
       let estadoPuntualidad: "puntual" | "tarde" | "sinVerificacion" = "sinVerificacion";
       let desviacion: number | null = null;
-      if (hitoInicio !== undefined) {
+      if (inicioReal !== undefined) {
         const programado = inicioProgramadoMs(servicio);
-        desviacion = Math.round((hitoInicio.timestamp - programado) / 60_000);
-        estadoPuntualidad =
-          hitoInicio.timestamp <= programado + tolerancia ? "puntual" : "tarde";
+        desviacion = Math.round((inicioReal - programado) / 60_000);
+        estadoPuntualidad = inicioReal <= programado + tolerancia ? "puntual" : "tarde";
       }
       filas.push({
         servicioId: servicio._id,

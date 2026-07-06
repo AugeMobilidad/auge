@@ -59,22 +59,21 @@ async function serviciosDeOperacion(
 ): Promise<Array<Doc<"serviciosTransporte">>> {
   return await ctx.db
     .query("serviciosTransporte")
-    .withIndex("by_operacion", (q) => q.eq("operacionId", operacionId))
+    .withIndex("by_operacion_estado_fecha", (q) => q.eq("operacionId", operacionId))
     .collect();
 }
 
-/** ¿Inició a tiempo? true/false, o null si no hay hito de inicio. */
-async function inicioATiempo(
-  ctx: QueryCtx,
-  servicio: Doc<"serviciosTransporte">,
-): Promise<boolean | null> {
-  const hitos = await ctx.db
-    .query("seguimientosGps")
-    .withIndex("by_servicio_timestamp", (q) => q.eq("servicioId", servicio._id))
-    .collect();
-  const inicio = hitos.find((h) => h.evento === "inicio");
-  if (inicio === undefined) return null;
-  return inicio.timestamp <= inicioProgramadoMs(servicio) + TOLERANCIA_PUNTUALIDAD_MS;
+/**
+ * ¿Inició a tiempo? true/false, o null si no hay hito de inicio.
+ * Usa el `inicioRealTimestamp` denormalizado del servicio (estampado por
+ * `iniciarServicioHelper`) en vez de escanear seguimientosGps.
+ */
+function inicioATiempo(servicio: Doc<"serviciosTransporte">): boolean | null {
+  if (servicio.inicioRealTimestamp === undefined) return null;
+  return (
+    servicio.inicioRealTimestamp <=
+    inicioProgramadoMs(servicio) + TOLERANCIA_PUNTUALIDAD_MS
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -477,7 +476,7 @@ export const trazabilidadServicio = query({
       cierre: {
         cerrado: servicio.estado === "completado",
         conEvidencia: evidencias.length > 0,
-        puntualInicio: await inicioATiempo(ctx, servicio),
+        puntualInicio: inicioATiempo(servicio),
       },
     };
   },
@@ -538,7 +537,7 @@ export const estadoOperacion = query({
         vehiculos.add(asignacion.vehiculoId);
         conductores.add(asignacion.conductorId);
       }
-      const puntual = await inicioATiempo(ctx, servicio);
+      const puntual = inicioATiempo(servicio);
       if (puntual !== null) {
         medidos += 1;
         if (puntual) aTiempo += 1;
@@ -793,7 +792,7 @@ export const desempenoConductor = query({
       const servicio = await ctx.db.get(asignacion.servicioId);
       if (servicio === null || !enRango(servicio.fechaProgramada)) continue;
       completados += 1;
-      const puntual = await inicioATiempo(ctx, servicio);
+      const puntual = inicioATiempo(servicio);
       if (puntual === false) retrasos += 1;
       const incidenciasServicio = await ctx.db
         .query("incidencias")

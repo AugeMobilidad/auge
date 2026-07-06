@@ -455,6 +455,7 @@ pub enum AsignacionesServicioEstado {
     Rechazada,
     Reemplazada,
     Completada,
+    Cancelada,
 }
 
 #[derive(Debug, Clone)]
@@ -594,6 +595,8 @@ pub struct ServiciosTransporteTable {
     pub prioridad: ServiciosTransportePrioridad,
     pub tarifaAcordada: Option<f64>,
     pub observaciones: Option<String>,
+    pub inicioRealTimestamp: Option<f64>,
+    pub finRealTimestamp: Option<f64>,
 }
 
 #[derive(Debug, Clone)]
@@ -1779,6 +1782,23 @@ impl std::convert::TryFrom<AccionesoperativasActualizarEstadoDocumentoArgs> for 
             map.insert("verificadoPor".to_string(), convex_typegen::serde_json::to_value(__v)?);
         }
         Ok(map)
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(crate = "convex_typegen::serde")]
+pub struct AccionesoperativasRefrescarEstadosDocumentosArgs {
+}
+
+impl AccionesoperativasRefrescarEstadosDocumentosArgs {
+    pub const FUNCTION_PATH: &'static str = "accionesOperativas:refrescarEstadosDocumentos";
+}
+
+impl std::convert::TryFrom<AccionesoperativasRefrescarEstadosDocumentosArgs> for std::collections::BTreeMap<String, ConvexJsonValue> {
+    type Error = ConvexJsonError;
+
+    fn try_from(_args: AccionesoperativasRefrescarEstadosDocumentosArgs) -> Result<Self, Self::Error> {
+        Ok(std::collections::BTreeMap::new())
     }
 }
 
@@ -3289,6 +3309,23 @@ impl std::convert::TryFrom<AuditoriaAccionesPorOrigenArgs> for std::collections:
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(crate = "convex_typegen::serde")]
+pub struct SemillasSembrarDatosDemoArgs {
+}
+
+impl SemillasSembrarDatosDemoArgs {
+    pub const FUNCTION_PATH: &'static str = "semillas:sembrarDatosDemo";
+}
+
+impl std::convert::TryFrom<SemillasSembrarDatosDemoArgs> for std::collections::BTreeMap<String, ConvexJsonValue> {
+    type Error = ConvexJsonError;
+
+    fn try_from(_args: SemillasSembrarDatosDemoArgs) -> Result<Self, Self::Error> {
+        Ok(std::collections::BTreeMap::new())
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(crate = "convex_typegen::serde")]
 pub struct OperacionesServiciosPendientesAsignacionArgs {
     pub fecha: Option<String>,
 }
@@ -3553,7 +3590,7 @@ impl std::convert::TryFrom<OperacionesControlEventoArgs> for std::collections::B
 #[serde(crate = "convex_typegen::serde")]
 pub struct SeguridadVerificarPermisoArgs {
     pub usuarioSistemaId: String,
-    pub permiso: String,
+    pub permiso: ConvexJsonValue,
 }
 
 impl SeguridadVerificarPermisoArgs {

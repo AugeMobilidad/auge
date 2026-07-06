@@ -178,10 +178,15 @@ export default defineSchema({
     ),
     tarifaAcordada: v.optional(v.number()),
     observaciones: v.optional(v.string()),
+    // Hitos reales denormalizados (se estampan al iniciar/cerrar) para que la
+    // puntualidad no exija escanear seguimientosGps.
+    inicioRealTimestamp: v.optional(v.number()), // epoch ms
+    finRealTimestamp: v.optional(v.number()),
   })
     .index("by_estado_fecha", ["estado", "fechaProgramada"])
+    // Nota: el prefijo ["operacionId"] de este índice cubre las consultas
+    // "por operación" — no hace falta un índice by_operacion aparte.
     .index("by_operacion_estado_fecha", ["operacionId", "estado", "fechaProgramada"])
-    .index("by_operacion", ["operacionId"])
     .index("by_ruta_fecha", ["rutaId", "fechaProgramada"])
     .index("by_solicitud", ["solicitudId"])
     .index("by_fecha", ["fechaProgramada"]),
@@ -752,6 +757,7 @@ export default defineSchema({
       v.literal("rechazada"),
       v.literal("reemplazada"),
       v.literal("completada"),
+      v.literal("cancelada"), // el servicio se canceló/falló con esta asignación activa
     ),
     motivoReemplazo: v.optional(v.string()),
   })

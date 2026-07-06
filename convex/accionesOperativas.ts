@@ -9,6 +9,15 @@
  * Las mutations `conductor*` (seguras para Telegram) y `dashboard*` comparten
  * los helpers internos de este archivo: la lógica de negocio vive una sola vez.
  *
+ * Superficie pública vs interna:
+ * - `dashboard*` exige actorUsuarioSistemaId + permiso; `conductor*` exige
+ *   asignación propia del conductor. Son la superficie para las apps.
+ * - Las mutations sin actor (creación de usuarios/roles, liquidaciones,
+ *   auditoría manual, checklist/GPS/evidencia genéricos) son
+ *   `internalMutation`: solo se invocan desde otras funciones Convex o con
+ *   `npx convex run`, nunca desde clientes externos. Antes eran públicas y
+ *   permitían, p.ej., crear un usuario admin sin autenticación.
+ *
  * Reglas de flujo del servicio:
  *   programado → asignado          solo con asignación confirmada
  *   asignado   → enPreparacion     solo con cumplimiento vehículo/conductor válido
@@ -17,7 +26,7 @@
  *   cualquiera no terminal → cancelado/fallido con motivo
  */
 import { v } from "convex/values";
-import { mutation } from "./_generated/server";
+import { internalMutation, mutation } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import { registrarAuditoria, type ActorAuditoria } from "./auditoria";
@@ -28,6 +37,8 @@ import {
   resolverActorTelegram,
 } from "./seguridad";
 import {
+  fechaISODeInstante,
+  horaDeInstante,
   hoyISO,
   sumarDiasISO,
   ventanaDeServicio,
@@ -266,6 +277,15 @@ async function asignarHelper(
     if (!vinculoVehiculo.some((vinculo) => vinculo.vehiculoId === args.vehiculoId)) {
       throw new Error("El vehículo no pertenece a la flota activa de ese gestor");
     }
+    const vinculoConductor = await ctx.db
+      .query("conductoresGestor")
+      .withIndex("by_gestor_estado", (q) =>
+        q.eq("gestorId", args.gestorId!).eq("estado", "activo"),
+      )
+      .collect();
+    if (!vinculoConductor.some((vinculo) => vinculo.conductorId === args.conductorId)) {
+      throw new Error("El conductor no está vinculado activo a ese gestor");
+    }
   }
   const estado = args.confirmarInmediato === true ? "confirmada" : "propuesta";
   const asignacionId = await ctx.db.insert("asignacionesServicio", {
@@ -350,8 +370,7 @@ async function reemplazarAsignacionHelper(
     resultado: "ok",
     detalle: args.motivoReemplazo,
   });
-  const servicioRefrescado = await obtenerServicio(ctx, args.servicioId);
-  void servicioRefrescado;
+  // asignarHelper relee el servicio, así que ve el estado "programado" recién escrito.
   return await asignarHelper(ctx, actor, args);
 }
 
@@ -398,8 +417,10 @@ async function registrarChecklistHelper(
         ? "aprobadoConObservaciones"
         : "rechazado";
 
-  // asignado → enPreparacion exige cumplimiento válido de vehículo/conductor.
-  if (servicio.estado === "asignado") {
+  // asignado → enPreparacion exige checklist no rechazado y cumplimiento
+  // válido de vehículo/conductor. Un checklist rechazado se registra pero deja
+  // el servicio en `asignado` para que se corrija y se reintente.
+  if (servicio.estado === "asignado" && resultado !== "rechazado") {
     const vehiculo = await ctx.db.get(args.vehiculoId);
     const conductor = await ctx.db.get(args.conductorId);
     if (vehiculo === null || conductor === null) {
@@ -457,13 +478,16 @@ async function iniciarServicioHelper(
   }
   const asignacion = await asignacionActivaDeServicio(ctx, args.servicioId, ["confirmada"]);
   if (asignacion === null) throw new Error("El servicio no tiene asignación confirmada");
+  const ahora = Date.now();
   await transicionarServicio(ctx, servicio, "enCurso");
+  // Hito real denormalizado: la puntualidad se mide contra este campo.
+  await ctx.db.patch(servicio._id, { inicioRealTimestamp: ahora });
   if (args.geo !== undefined) {
     await ctx.db.insert("seguimientosGps", {
       servicioId: args.servicioId,
       vehiculoId: asignacion.vehiculoId,
       conductorId: asignacion.conductorId,
-      timestamp: Date.now(),
+      timestamp: ahora,
       lat: args.geo.lat,
       lng: args.geo.lng,
       fuente: args.fuente ?? "manual",
@@ -533,8 +557,8 @@ async function registrarEvidenciaHelper(
   },
 ): Promise<Id<"evidenciasServicio">> {
   const servicio = await obtenerServicio(ctx, args.servicioId);
-  if (servicio.estado === "cancelado") {
-    throw new Error("El servicio está cancelado; no admite evidencias");
+  if (servicio.estado === "cancelado" || servicio.estado === "fallido") {
+    throw new Error(`El servicio está ${servicio.estado}; no admite evidencias`);
   }
   const evidenciaId = await ctx.db.insert("evidenciasServicio", {
     servicioId: args.servicioId,
@@ -673,11 +697,12 @@ async function cerrarServicioHelper(
   }
   await transicionarServicio(ctx, servicio, "completado");
   await ctx.db.patch(asignacion._id, { estado: "completada" });
-  if (args.cantidadPasajerosReal !== undefined) {
-    await ctx.db.patch(args.servicioId, {
-      cantidadPasajerosReal: args.cantidadPasajerosReal,
-    });
-  }
+  await ctx.db.patch(args.servicioId, {
+    finRealTimestamp: Date.now(),
+    ...(args.cantidadPasajerosReal !== undefined
+      ? { cantidadPasajerosReal: args.cantidadPasajerosReal }
+      : {}),
+  });
   await registrarAuditoria(ctx, actor, {
     accion: "servicio.completado",
     entidadTipo: "serviciosTransporte",
@@ -705,6 +730,18 @@ async function cancelarServicioHelper(
   await ctx.db.patch(args.servicioId, {
     observaciones: `${servicio.observaciones ?? ""}\n[${destino}] ${args.motivo}`.trim(),
   });
+  // Cierra la asignación activa: sin esto quedaría "confirmada" para siempre y
+  // seguiría contando en chequeos de agenda y autorizando al conductor.
+  const asignacion = await asignacionActivaDeServicio(ctx, args.servicioId, [
+    "propuesta",
+    "confirmada",
+  ]);
+  if (asignacion !== null) {
+    await ctx.db.patch(asignacion._id, {
+      estado: "cancelada",
+      motivoReemplazo: `[servicio ${destino}] ${args.motivo}`,
+    });
+  }
   await registrarAuditoria(ctx, actor, {
     accion: destino === "fallido" ? "servicio.fallido" : "servicio.cancelado",
     entidadTipo: "serviciosTransporte",
@@ -714,7 +751,14 @@ async function cancelarServicioHelper(
   });
 }
 
-/** Resuelve el conductor que actúa desde Telegram o por id directo. */
+/**
+ * Resuelve el conductor que actúa desde Telegram o por id directo.
+ *
+ * ADVERTENCIA de confianza: la rama `conductorId` existe para la fachada Rust
+ * `conductor_app` (app nativa futura) y confía en el id que envía el cliente.
+ * Cuando haya auth real, esta rama debe derivar el conductor de
+ * `ctx.auth.getUserIdentity()` en vez de un argumento.
+ */
 async function resolverConductorActor(
   ctx: MutationCtx,
   args: { telegramUserId?: string; conductorId?: Id<"conductores"> },
@@ -745,7 +789,7 @@ async function resolverConductorActor(
 // Mutations — creación de objetos comerciales/operativos
 // ---------------------------------------------------------------------------
 
-export const crearCliente = mutation({
+export const crearCliente = internalMutation({
   args: {
     nombre: v.string(),
     tipo: v.union(
@@ -777,7 +821,7 @@ export const crearCliente = mutation({
   },
 });
 
-export const crearProgramaMovilidad = mutation({
+export const crearProgramaMovilidad = internalMutation({
   args: {
     clienteId: v.id("clientes"),
     tipoServicio: v.union(
@@ -915,14 +959,17 @@ export const convertirSolicitudEnOperacionOServicio = mutation({
       });
     }
 
-    // Se programa el servicio si hay datos suficientes.
+    // Se programa el servicio si hay datos suficientes. La fecha/hora de
+    // calendario se deriva en hora de Colombia (no UTC): un instante de las
+    // 8 p.m. en Bogotá es la 1 a.m. UTC del día siguiente.
     let servicioId: Id<"serviciosTransporte"> | undefined;
-    const fechaHora =
-      solicitud.fechaHoraRequerida !== undefined
-        ? new Date(solicitud.fechaHoraRequerida)
-        : undefined;
-    const fecha = args.fechaProgramada ?? fechaHora?.toISOString().slice(0, 10);
-    const hora = args.horaInicioProgramada ?? fechaHora?.toISOString().slice(11, 16);
+    const requerida = solicitud.fechaHoraRequerida;
+    const fecha =
+      args.fechaProgramada ??
+      (requerida !== undefined ? fechaISODeInstante(requerida) : undefined);
+    const hora =
+      args.horaInicioProgramada ??
+      (requerida !== undefined ? horaDeInstante(requerida) : undefined);
     if (
       fecha !== undefined &&
       hora !== undefined &&
@@ -1129,7 +1176,7 @@ export const reemplazarAsignacion = mutation({
   },
 });
 
-export const registrarChecklistPreoperativo = mutation({
+export const registrarChecklistPreoperativo = internalMutation({
   args: {
     servicioId: v.id("serviciosTransporte"),
     vehiculoId: v.id("vehiculos"),
@@ -1160,7 +1207,7 @@ export const iniciarServicio = mutation({
   },
 });
 
-export const registrarSeguimientoGps = mutation({
+export const registrarSeguimientoGps = internalMutation({
   args: {
     servicioId: v.id("serviciosTransporte"),
     lat: v.number(),
@@ -1187,7 +1234,7 @@ export const registrarSeguimientoGps = mutation({
   },
 });
 
-export const registrarEvidenciaServicio = mutation({
+export const registrarEvidenciaServicio = internalMutation({
   args: {
     servicioId: v.id("serviciosTransporte"),
     tipo: v.union(
@@ -1277,7 +1324,7 @@ export const cerrarServicio = mutation({
 // Mutations — financiero, cumplimiento y desempeño
 // ---------------------------------------------------------------------------
 
-export const crearLiquidacion = mutation({
+export const crearLiquidacion = internalMutation({
   args: {
     servicioId: v.id("serviciosTransporte"),
     propietarioId: v.optional(v.id("propietarios")),
@@ -1336,7 +1383,7 @@ async function aprobarLiquidacionHelper(
   });
 }
 
-export const aprobarLiquidacion = mutation({
+export const aprobarLiquidacion = internalMutation({
   args: { liquidacionId: v.id("liquidaciones") },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -1345,7 +1392,7 @@ export const aprobarLiquidacion = mutation({
   },
 });
 
-export const marcarLiquidacionPagada = mutation({
+export const marcarLiquidacionPagada = internalMutation({
   args: { liquidacionId: v.id("liquidaciones") },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -1469,6 +1516,56 @@ export const actualizarEstadoDocumento = mutation({
   },
 });
 
+/**
+ * Refresco periódico de estados de documentos (cron diario, ver crons.ts).
+ * El `estado` almacenado es un snapshot: sin esto, un documento "vigente"
+ * cuya fecha ya pasó jamás se volvería "vencido" y no bloquearía asignaciones.
+ */
+export const refrescarEstadosDocumentos = internalMutation({
+  args: {},
+  returns: v.object({ vencidos: v.number(), porVencer: v.number() }),
+  handler: async (ctx) => {
+    const hoy = hoyISO();
+    const limite = sumarDiasISO(hoy, DIAS_POR_VENCER);
+    let vencidos = 0;
+    let porVencer = 0;
+    for (const estado of ["vigente", "porVencer"] as const) {
+      const expirados = await ctx.db
+        .query("documentosCumplimiento")
+        .withIndex("by_estado_vencimiento", (q) =>
+          q.eq("estado", estado).lt("fechaVencimiento", hoy),
+        )
+        .collect();
+      for (const documento of expirados) {
+        // El rango lt() también captura fechaVencimiento undefined (ordena
+        // antes que cualquier string); esos documentos no vencen.
+        if (documento.fechaVencimiento === undefined) continue;
+        await ctx.db.patch(documento._id, { estado: "vencido" });
+        vencidos += 1;
+      }
+    }
+    const proximos = await ctx.db
+      .query("documentosCumplimiento")
+      .withIndex("by_estado_vencimiento", (q) =>
+        q.eq("estado", "vigente").gte("fechaVencimiento", hoy).lte("fechaVencimiento", limite),
+      )
+      .collect();
+    for (const documento of proximos) {
+      await ctx.db.patch(documento._id, { estado: "porVencer" });
+      porVencer += 1;
+    }
+    if (vencidos > 0 || porVencer > 0) {
+      await registrarAuditoria(ctx, ACTOR_SISTEMA, {
+        accion: "documentos.refrescoEstados",
+        entidadTipo: "documentosCumplimiento",
+        resultado: "ok",
+        detalle: `${vencidos} vencido(s), ${porVencer} por vencer`,
+      });
+    }
+    return { vencidos, porVencer };
+  },
+});
+
 async function registrarMantenimientoHelper(
   ctx: MutationCtx,
   actor: ActorAuditoria,
@@ -1522,7 +1619,7 @@ export const registrarMantenimiento = mutation({
   },
 });
 
-export const evaluarDesempeno = mutation({
+export const evaluarDesempeno = internalMutation({
   args: {
     entidadTipo: v.union(
       v.literal("conductor"),
@@ -1705,7 +1802,7 @@ export const desvincularConductorDeGestor = mutation({
 // Mutations — identidad y soporte de apps
 // ---------------------------------------------------------------------------
 
-export const crearUsuarioSistema = mutation({
+export const crearUsuarioSistema = internalMutation({
   args: {
     nombre: v.string(),
     email: v.optional(v.string()),
@@ -1743,7 +1840,7 @@ export const crearUsuarioSistema = mutation({
   },
 });
 
-export const asignarRolUsuario = mutation({
+export const asignarRolUsuario = internalMutation({
   args: {
     usuarioSistemaId: v.id("usuariosSistema"),
     rolSistemaId: v.id("rolesSistema"),
@@ -1780,7 +1877,7 @@ export const asignarRolUsuario = mutation({
   },
 });
 
-export const revocarRolUsuario = mutation({
+export const revocarRolUsuario = internalMutation({
   args: {
     usuarioSistemaId: v.id("usuariosSistema"),
     rolSistemaId: v.id("rolesSistema"),
@@ -1806,7 +1903,7 @@ export const revocarRolUsuario = mutation({
   },
 });
 
-export const registrarAuditoriaAccion = mutation({
+export const registrarAuditoriaAccion = internalMutation({
   args: {
     actorTipo: v.union(
       v.literal("usuario"),
@@ -1869,6 +1966,23 @@ export const vincularCuentaTelegram = mutation({
       .query("telegramCuentas")
       .withIndex("by_telegramUserId", (q) => q.eq("telegramUserId", args.telegramUserId))
       .unique();
+    // Una cuenta ya vinculada no se re-apunta a otro conductor/usuario por esta
+    // vía: hay que desvincularla primero (evita tomas de cuenta silenciosas).
+    if (existente !== null && existente.estado === "vinculada") {
+      const cambiaConductor =
+        args.conductorId !== undefined &&
+        existente.conductorId !== undefined &&
+        args.conductorId !== existente.conductorId;
+      const cambiaUsuario =
+        args.usuarioSistemaId !== undefined &&
+        existente.usuarioSistemaId !== undefined &&
+        args.usuarioSistemaId !== existente.usuarioSistemaId;
+      if (cambiaConductor || cambiaUsuario) {
+        throw new Error(
+          "La cuenta de Telegram ya está vinculada a otra identidad; desvincúlela primero",
+        );
+      }
+    }
     let cuentaId: Id<"telegramCuentas">;
     if (existente !== null) {
       await ctx.db.patch(existente._id, {

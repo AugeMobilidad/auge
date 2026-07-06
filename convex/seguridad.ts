@@ -171,7 +171,14 @@ export async function requerirAsignacionDeConductor(
 export const verificarPermiso = query({
   args: {
     usuarioSistemaId: v.id("usuariosSistema"),
-    permiso: v.string(),
+    permiso: v.union(
+      v.literal("despachar"),
+      v.literal("gestionarIncidencias"),
+      v.literal("gestionarDocumentos"),
+      v.literal("aprobarLiquidaciones"),
+      v.literal("verEventos"),
+      v.literal("administrar"),
+    ),
   },
   returns: v.object({ permitido: v.boolean(), motivo: v.optional(v.string()) }),
   handler: async (ctx, args) => {
@@ -180,7 +187,7 @@ export const verificarPermiso = query({
     if (usuario.estado !== "activo") {
       return { permitido: false, motivo: `Usuario ${usuario.estado}` };
     }
-    const permitido = await usuarioTienePermiso(ctx, usuario, args.permiso as Permiso);
+    const permitido = await usuarioTienePermiso(ctx, usuario, args.permiso);
     return permitido
       ? { permitido: true }
       : { permitido: false, motivo: `Falta permiso "${args.permiso}"` };

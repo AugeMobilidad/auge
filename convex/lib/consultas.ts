@@ -4,6 +4,7 @@
  */
 import type { QueryCtx } from "../_generated/server";
 import type { Doc, Id } from "../_generated/dataModel";
+import { hoyISO } from "./horarios";
 
 /** Primera asignación del servicio en alguno de los estados dados. */
 export async function asignacionActivaDeServicio(
@@ -76,8 +77,16 @@ export async function resumenCumplimientoDeEntidad(
       q.eq(campo, id as any),
     )
     .collect();
+  // El `estado` almacenado puede quedar desactualizado (un doc "vigente" cuya
+  // fecha ya pasó); la fecha de vencimiento manda sobre el snapshot.
+  const hoy = hoyISO();
+  const estaVencido = (d: Doc<"documentosCumplimiento">) =>
+    d.estado === "vencido" ||
+    (d.fechaVencimiento !== undefined &&
+      d.fechaVencimiento < hoy &&
+      d.estado !== "rechazado");
   return {
-    vencidos: documentos.filter((d) => d.estado === "vencido").length,
-    porVencer: documentos.filter((d) => d.estado === "porVencer").length,
+    vencidos: documentos.filter(estaVencido).length,
+    porVencer: documentos.filter((d) => d.estado === "porVencer" && !estaVencido(d)).length,
   };
 }
