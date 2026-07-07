@@ -8,11 +8,17 @@ app-facing**, nunca contra tablas crudas:
 | Resumen operativo del día | `appDashboard.dashboardResumenOperativo` |
 | Tablero de despacho | `appDashboard.dashboardTableroDespacho` |
 | Detalle de servicio | `appDashboard.dashboardDetalleServicio` |
+| Incidencias abiertas | `appDashboard.dashboardIncidenciasAbiertas` |
 | Panel de cumplimiento | `appDashboard.dashboardCumplimiento` |
+| Documentos por vencer/vencidos (con id) | `appDashboard.dashboardDocumentosProximosVencer` |
 | Centro de comando de eventos | `appDashboard.dashboardEventos` |
 | Panel de liquidaciones | `appDashboard.dashboardLiquidaciones` |
-| Crear/asignar/cancelar servicio | mutations `dashboard*` en `accionesOperativas` |
+| Asignar/reasignar/confirmar/cancelar servicio | mutations `dashboard*` en `accionesOperativas` |
+| Registrar/resolver incidencia | `dashboardRegistrarIncidencia` / `dashboardResolverIncidencia` |
+| Actualizar documento / programar mantenimiento | `dashboardActualizarDocumento` / `dashboardProgramarMantenimiento` |
+| Aprobar liquidación | `dashboardAprobarLiquidacion` |
 | Analítica / red flags | `analisis.*` |
+| Login dev (selector de actor) | `dev/usuarios:listarUsuariosSistema` (solo dev) |
 
 Reglas:
 

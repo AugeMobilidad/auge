@@ -1,0 +1,125 @@
+@import "tailwindcss";
+
+/* =========================================================================
+   Sistema de diseño — "Sala de control" de operaciones Auge.
+   Base tinta fría, un único acento ámbar de señalización, semántica de estado.
+   ========================================================================= */
+@theme {
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", monospace;
+  --font-display: "Archivo", "IBM Plex Sans", sans-serif;
+
+  --color-base-950: #0b0e13;
+  --color-base-900: #0f131a;
+  --color-panel-850: #141922;
+  --color-panel-800: #191f2a;
+  --color-panel-750: #212836;
+  --color-line: #29313f;
+  --color-line-soft: #1e2531;
+
+  --color-fg: #e7ebf2;
+  --color-muted: #8b95a7;
+  --color-faint: #5c6678;
+
+  --color-signal: #f5a524;
+  --color-signal-ink: #2a1e08;
+
+  --color-ok: #35d39a;
+  --color-warn: #fbbf24;
+  --color-crit: #fb7185;
+  --color-info: #56b6e6;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-line);
+  }
+  html {
+    color-scheme: dark;
+  }
+  body {
+    margin: 0;
+    background-color: var(--color-base-950);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv05", "ss01";
+    -webkit-font-smoothing: antialiased;
+    /* Atmósfera: retícula técnica muy tenue + halo ámbar en la esquina. */
+    background-image:
+      radial-gradient(900px 500px at 100% -5%, rgba(245, 165, 36, 0.06), transparent 60%),
+      linear-gradient(var(--color-line-soft) 1px, transparent 1px),
+      linear-gradient(90deg, var(--color-line-soft) 1px, transparent 1px);
+    background-size:
+      100% 100%,
+      44px 44px,
+      44px 44px;
+    background-attachment: fixed;
+  }
+  ::selection {
+    background: var(--color-signal);
+    color: var(--color-signal-ink);
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-panel-750);
+    border-radius: 999px;
+    border: 2px solid var(--color-base-950);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-line);
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-signal);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .panel {
+    background-color: color-mix(in srgb, var(--color-panel-850) 88%, transparent);
+    border: 1px solid var(--color-line);
+    border-radius: 14px;
+    backdrop-filter: blur(6px);
+  }
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--color-faint);
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+  @keyframes surgir {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  .surgir {
+    animation: surgir 0.36s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  @keyframes pulso-señal {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.35;
+    }
+  }
+  .pulso {
+    animation: pulso-señal 1.8s ease-in-out infinite;
+  }
+}
