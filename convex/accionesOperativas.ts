@@ -859,7 +859,7 @@ export const crearProgramaMovilidad = internalMutation({
   },
 });
 
-export const registrarSolicitudServicio = mutation({
+export const registrarSolicitudServicio = internalMutation({
   args: {
     clienteId: v.id("clientes"),
     programaId: v.optional(v.id("programasMovilidad")),
@@ -906,7 +906,7 @@ export const registrarSolicitudServicio = mutation({
   },
 });
 
-export const convertirSolicitudEnOperacionOServicio = mutation({
+export const convertirSolicitudEnOperacionOServicio = internalMutation({
   args: {
     solicitudId: v.id("solicitudesServicio"),
     // Si se pasa, el servicio se cuelga de esta operación existente;
@@ -1000,7 +1000,7 @@ export const convertirSolicitudEnOperacionOServicio = mutation({
   },
 });
 
-export const crearOperacion = mutation({
+export const crearOperacion = internalMutation({
   args: {
     programaId: v.id("programasMovilidad"),
     nombre: v.string(),
@@ -1043,7 +1043,7 @@ export const crearOperacion = mutation({
   },
 });
 
-export const crearRuta = mutation({
+export const crearRuta = internalMutation({
   args: {
     programaId: v.id("programasMovilidad"),
     nombre: v.string(),
@@ -1082,7 +1082,7 @@ export const crearRuta = mutation({
   },
 });
 
-export const crearParada = mutation({
+export const crearParada = internalMutation({
   args: {
     rutaId: v.id("rutas"),
     nombre: v.string(),
@@ -1108,7 +1108,7 @@ export const crearParada = mutation({
   },
 });
 
-export const programarServicio = mutation({
+export const programarServicio = internalMutation({
   args: {
     operacionId: v.id("operaciones"),
     solicitudId: v.optional(v.id("solicitudesServicio")),
@@ -1145,7 +1145,7 @@ export const programarServicio = mutation({
 // Mutations — asignación y ciclo de vida del servicio (capa de datos)
 // ---------------------------------------------------------------------------
 
-export const asignarVehiculoYConductor = mutation({
+export const asignarVehiculoYConductor = internalMutation({
   args: {
     servicioId: v.id("serviciosTransporte"),
     vehiculoId: v.id("vehiculos"),
@@ -1160,7 +1160,7 @@ export const asignarVehiculoYConductor = mutation({
   },
 });
 
-export const reemplazarAsignacion = mutation({
+export const reemplazarAsignacion = internalMutation({
   args: {
     servicioId: v.id("serviciosTransporte"),
     vehiculoId: v.id("vehiculos"),
@@ -1195,7 +1195,7 @@ export const registrarChecklistPreoperativo = internalMutation({
   },
 });
 
-export const iniciarServicio = mutation({
+export const iniciarServicio = internalMutation({
   args: {
     servicioId: v.id("serviciosTransporte"),
     geo: v.optional(v.object({ lat: v.number(), lng: v.number() })),
@@ -1264,7 +1264,7 @@ export const registrarEvidenciaServicio = internalMutation({
   },
 });
 
-export const registrarIncidencia = mutation({
+export const registrarIncidencia = internalMutation({
   args: {
     servicioId: v.id("serviciosTransporte"),
     tipo: v.union(
@@ -1292,7 +1292,7 @@ export const registrarIncidencia = mutation({
   },
 });
 
-export const resolverIncidencia = mutation({
+export const resolverIncidencia = internalMutation({
   args: {
     incidenciaId: v.id("incidencias"),
     accionCorrectiva: v.string(),
@@ -1306,7 +1306,7 @@ export const resolverIncidencia = mutation({
   },
 });
 
-export const cerrarServicio = mutation({
+export const cerrarServicio = internalMutation({
   args: {
     servicioId: v.id("serviciosTransporte"),
     notaCierre: v.optional(v.string()),
@@ -1421,7 +1421,7 @@ function estadoSegunVencimiento(fechaVencimiento?: string): "vigente" | "porVenc
   return fechaVencimiento <= sumarDiasISO(hoy, DIAS_POR_VENCER) ? "porVencer" : "vigente";
 }
 
-export const registrarDocumentoCumplimiento = mutation({
+export const registrarDocumentoCumplimiento = internalMutation({
   args: {
     entidadTipo: v.union(
       v.literal("conductor"),
@@ -1498,7 +1498,7 @@ async function actualizarEstadoDocumentoHelper(
   });
 }
 
-export const actualizarEstadoDocumento = mutation({
+export const actualizarEstadoDocumento = internalMutation({
   args: {
     documentoId: v.id("documentosCumplimiento"),
     estado: v.union(
@@ -1603,7 +1603,7 @@ async function registrarMantenimientoHelper(
   return mantenimientoId;
 }
 
-export const registrarMantenimiento = mutation({
+export const registrarMantenimiento = internalMutation({
   args: {
     vehiculoId: v.id("vehiculos"),
     tipo: v.union(v.literal("preventivo"), v.literal("correctivo"), v.literal("inspeccion")),
@@ -1666,7 +1666,7 @@ export const evaluarDesempeno = internalMutation({
 // Mutations — flota de gestor validado (links históricos)
 // ---------------------------------------------------------------------------
 
-export const vincularVehiculoAGestor = mutation({
+export const vincularVehiculoAGestor = internalMutation({
   args: {
     gestorId: v.id("gestoresValidados"),
     vehiculoId: v.id("vehiculos"),
@@ -1704,7 +1704,7 @@ export const vincularVehiculoAGestor = mutation({
   },
 });
 
-export const desvincularVehiculoDeGestor = mutation({
+export const desvincularVehiculoDeGestor = internalMutation({
   args: {
     gestorId: v.id("gestoresValidados"),
     vehiculoId: v.id("vehiculos"),
@@ -1732,7 +1732,7 @@ export const desvincularVehiculoDeGestor = mutation({
   },
 });
 
-export const vincularConductorAGestor = mutation({
+export const vincularConductorAGestor = internalMutation({
   args: {
     gestorId: v.id("gestoresValidados"),
     conductorId: v.id("conductores"),
@@ -1770,7 +1770,7 @@ export const vincularConductorAGestor = mutation({
   },
 });
 
-export const desvincularConductorDeGestor = mutation({
+export const desvincularConductorDeGestor = internalMutation({
   args: {
     gestorId: v.id("gestoresValidados"),
     conductorId: v.id("conductores"),
@@ -2480,6 +2480,60 @@ export const dashboardProgramarMantenimiento = mutation({
     const { actorUsuarioSistemaId, ...datos } = args;
     await requerirPermiso(ctx, actorUsuarioSistemaId, PERMISOS.gestionarDocumentos);
     return await registrarMantenimientoHelper(
+      ctx,
+      actorUsuario(actorUsuarioSistemaId),
+      datos,
+    );
+  },
+});
+
+export const dashboardConfirmarAsignacion = mutation({
+  args: {
+    actorUsuarioSistemaId: v.id("usuariosSistema"),
+    asignacionId: v.id("asignacionesServicio"),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await requerirPermiso(ctx, args.actorUsuarioSistemaId, PERMISOS.despachar);
+    const asignacion = await ctx.db.get(args.asignacionId);
+    if (asignacion === null) throw new Error("Asignación no encontrada");
+    await confirmarAsignacionHelper(
+      ctx,
+      actorUsuario(args.actorUsuarioSistemaId),
+      asignacion,
+    );
+    return null;
+  },
+});
+
+export const dashboardRegistrarIncidencia = mutation({
+  args: {
+    actorUsuarioSistemaId: v.id("usuariosSistema"),
+    servicioId: v.id("serviciosTransporte"),
+    tipo: v.union(
+      v.literal("retraso"),
+      v.literal("noShow"),
+      v.literal("fallaVehiculo"),
+      v.literal("cambioRuta"),
+      v.literal("accidente"),
+      v.literal("queja"),
+      v.literal("contingencia"),
+      v.literal("otro"),
+    ),
+    severidad: v.union(
+      v.literal("baja"),
+      v.literal("media"),
+      v.literal("alta"),
+      v.literal("critica"),
+    ),
+    descripcion: v.string(),
+    responsable: v.optional(v.string()),
+  },
+  returns: v.id("incidencias"),
+  handler: async (ctx, args) => {
+    const { actorUsuarioSistemaId, ...datos } = args;
+    await requerirPermiso(ctx, actorUsuarioSistemaId, PERMISOS.gestionarIncidencias);
+    return await registrarIncidenciaHelper(
       ctx,
       actorUsuario(actorUsuarioSistemaId),
       datos,

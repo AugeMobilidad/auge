@@ -263,6 +263,11 @@ export const dashboardTableroDespacho = query({
 // Detalle de servicio (pantalla de inspección)
 // ---------------------------------------------------------------------------
 
+// Cota de filas leídas por servicio para el detalle: un servicio con miles de
+// pings GPS o evidencias no debe forzar un scan completo solo para mostrar
+// conteos y el último hito. Los conteos se marcan como "truncados" al tope.
+const LIMITE_LECTURA_DETALLE = 100;
+
 export const dashboardDetalleServicio = query({
   args: { servicioId: v.id("serviciosTransporte") },
   returns: v.union(
@@ -274,6 +279,7 @@ export const dashboardDetalleServicio = query({
       asignacion: v.union(
         v.null(),
         v.object({
+          asignacionId: v.id("asignacionesServicio"),
           estado: v.string(),
           vehiculoPlaca: v.string(),
           conductorNombre: v.string(),
@@ -287,14 +293,20 @@ export const dashboardDetalleServicio = query({
       ),
       gpsResumen: v.object({
         puntos: v.number(),
+        puntosTruncados: v.boolean(),
         ultimoTimestamp: v.optional(v.number()),
         hitos: v.array(v.object({ evento: v.string(), timestamp: v.number() })),
       }),
       evidencias: v.number(),
+      evidenciasTruncadas: v.boolean(),
       incidenciasAbiertas: v.number(),
       liquidacion: v.union(
         v.null(),
-        v.object({ estado: v.string(), valorNeto: v.number() }),
+        v.object({
+          liquidacionId: v.id("liquidaciones"),
+          estado: v.string(),
+          valorNeto: v.number(),
+        }),
       ),
     }),
   ),
@@ -315,6 +327,7 @@ export const dashboardDetalleServicio = query({
       const gestor =
         asignacion.gestorId !== undefined ? await ctx.db.get(asignacion.gestorId) : null;
       asignacionShape = {
+        asignacionId: asignacion._id,
         estado: asignacion.estado,
         vehiculoPlaca: vehiculo?.placa ?? "(?)",
         conductorNombre: conductor?.nombre ?? "(?)",
@@ -323,18 +336,23 @@ export const dashboardDetalleServicio = query({
       };
     }
     const checklist = await checklistAprobadoDeServicio(ctx, servicio._id);
-    const gps = await ctx.db
+    // Lectura acotada y descendente: basta la ventana más reciente para el
+    // último timestamp y los hitos; no se escanea el histórico completo.
+    const gpsRecientes = await ctx.db
       .query("seguimientosGps")
       .withIndex("by_servicio_timestamp", (q) => q.eq("servicioId", servicio._id))
-      .collect();
+      .order("desc")
+      .take(LIMITE_LECTURA_DETALLE);
     const evidencias = await ctx.db
       .query("evidenciasServicio")
       .withIndex("by_servicio_timestamp", (q) => q.eq("servicioId", servicio._id))
-      .collect();
+      .order("desc")
+      .take(LIMITE_LECTURA_DETALLE);
     const incidencias = await ctx.db
       .query("incidencias")
       .withIndex("by_servicio", (q) => q.eq("servicioId", servicio._id))
-      .collect();
+      .order("desc")
+      .take(LIMITE_LECTURA_DETALLE);
     const liquidacion = await ctx.db
       .query("liquidaciones")
       .withIndex("by_servicio", (q) => q.eq("servicioId", servicio._id))
@@ -347,21 +365,94 @@ export const dashboardDetalleServicio = query({
       checklist:
         checklist !== null ? { resultado: checklist.resultado, fecha: checklist.fecha } : null,
       gpsResumen: {
-        puntos: gps.length,
-        ultimoTimestamp: gps.length > 0 ? gps[gps.length - 1].timestamp : undefined,
-        hitos: gps
+        puntos: gpsRecientes.length,
+        puntosTruncados: gpsRecientes.length === LIMITE_LECTURA_DETALLE,
+        // gpsRecientes viene en orden descendente; el primero es el más reciente.
+        ultimoTimestamp: gpsRecientes.length > 0 ? gpsRecientes[0].timestamp : undefined,
+        hitos: gpsRecientes
           .filter((h) => h.evento !== "ubicacion")
-          .map((h) => ({ evento: h.evento, timestamp: h.timestamp })),
+          .map((h) => ({ evento: h.evento, timestamp: h.timestamp }))
+          .sort((a, b) => a.timestamp - b.timestamp),
       },
       evidencias: evidencias.length,
+      evidenciasTruncadas: evidencias.length === LIMITE_LECTURA_DETALLE,
       incidenciasAbiertas: incidencias.filter(
         (i) => i.estado === "abierta" || i.estado === "enGestion",
       ).length,
       liquidacion:
         liquidacion !== null
-          ? { estado: liquidacion.estado, valorNeto: liquidacion.valorNeto }
+          ? {
+              liquidacionId: liquidacion._id,
+              estado: liquidacion.estado,
+              valorNeto: liquidacion.valorNeto,
+            }
           : null,
     };
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Incidencias abiertas (cola de gestión)
+// ---------------------------------------------------------------------------
+
+export const dashboardIncidenciasAbiertas = query({
+  args: {},
+  returns: v.array(
+    v.object({
+      incidenciaId: v.id("incidencias"),
+      servicioId: v.id("serviciosTransporte"),
+      tipo: v.string(),
+      severidad: v.string(),
+      estado: v.string(),
+      descripcion: v.string(),
+      timestamp: v.number(),
+      responsable: v.optional(v.string()),
+      clienteNombre: v.string(),
+      operacionNombre: v.string(),
+      rutaTexto: v.string(),
+      servicioFecha: v.string(),
+      servicioEstado: v.string(),
+    }),
+  ),
+  handler: async (ctx) => {
+    const filas = [];
+    for (const estado of ["abierta", "enGestion"] as const) {
+      const grupo = await ctx.db
+        .query("incidencias")
+        .withIndex("by_estado_timestamp", (q) => q.eq("estado", estado))
+        .order("desc")
+        .take(200);
+      for (const incidencia of grupo) {
+        const servicio = await ctx.db.get(incidencia.servicioId);
+        const contexto =
+          servicio !== null ? await contextoDeOperacion(ctx, servicio.operacionId) : null;
+        filas.push({
+          incidenciaId: incidencia._id,
+          servicioId: incidencia.servicioId,
+          tipo: incidencia.tipo,
+          severidad: incidencia.severidad,
+          estado: incidencia.estado,
+          descripcion: incidencia.descripcion,
+          timestamp: incidencia.timestamp,
+          responsable: incidencia.responsable,
+          clienteNombre: contexto?.cliente?.nombre ?? "(sin cliente)",
+          operacionNombre: contexto?.operacion.nombre ?? "(sin operación)",
+          rutaTexto:
+            servicio !== null
+              ? `${servicio.origenTexto} → ${servicio.destinoTexto}`
+              : "(servicio no encontrado)",
+          servicioFecha: servicio?.fechaProgramada ?? "",
+          servicioEstado: servicio?.estado ?? "",
+        });
+      }
+    }
+    // Más severas y recientes primero.
+    const rankSeveridad: Record<string, number> = { critica: 0, alta: 1, media: 2, baja: 3 };
+    return filas.sort(
+      (a, b) =>
+        (rankSeveridad[a.severidad] ?? 9) - (rankSeveridad[b.severidad] ?? 9) ||
+        b.timestamp - a.timestamp,
+    );
   },
 });
 
@@ -500,6 +591,96 @@ export const dashboardCumplimiento = query({
       vehiculosBloqueados,
       mantenimientosPendientes,
     };
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Documentos de cumplimiento próximos a vencer / vencidos (con id para gestión)
+// ---------------------------------------------------------------------------
+
+export const dashboardDocumentosProximosVencer = query({
+  args: { diasVentana: v.optional(v.number()) },
+  returns: v.array(
+    v.object({
+      documentoId: v.id("documentosCumplimiento"),
+      entidadTipo: v.string(),
+      entidadNombre: v.string(),
+      identificacion: v.string(),
+      tipoDocumento: v.string(),
+      estado: v.string(),
+      fechaVencimiento: v.optional(v.string()),
+      diasRestantes: v.union(v.number(), v.null()),
+    }),
+  ),
+  handler: async (ctx, args) => {
+    const hoy = hoyISO();
+    const limite = sumarDiasISO(hoy, args.diasVentana ?? 30);
+    const relevantes: Array<Doc<"documentosCumplimiento">> = [];
+    // Vencidos.
+    relevantes.push(
+      ...(await ctx.db
+        .query("documentosCumplimiento")
+        .withIndex("by_estado_vencimiento", (q) => q.eq("estado", "vencido"))
+        .take(300)),
+    );
+    // Por vencer / vigentes dentro de la ventana.
+    for (const estado of ["porVencer", "vigente"] as const) {
+      relevantes.push(
+        ...(await ctx.db
+          .query("documentosCumplimiento")
+          .withIndex("by_estado_vencimiento", (q) =>
+            q.eq("estado", estado).gte("fechaVencimiento", hoy).lte("fechaVencimiento", limite),
+          )
+          .take(300)),
+      );
+    }
+
+    const nombreEntidad = async (
+      documento: Doc<"documentosCumplimiento">,
+    ): Promise<{ nombre: string; ident: string }> => {
+      if (documento.entidadTipo === "conductor" && documento.conductorId !== undefined) {
+        const c = await ctx.db.get(documento.conductorId);
+        return { nombre: c?.nombre ?? "(?)", ident: c?.cedula ?? "" };
+      }
+      if (documento.entidadTipo === "vehiculo" && documento.vehiculoId !== undefined) {
+        const vh = await ctx.db.get(documento.vehiculoId);
+        return { nombre: vh ? `${vh.marca} ${vh.linea}` : "(?)", ident: vh?.placa ?? "" };
+      }
+      if (documento.entidadTipo === "propietario" && documento.propietarioId !== undefined) {
+        const p = await ctx.db.get(documento.propietarioId);
+        return { nombre: p?.nombre ?? "(?)", ident: p?.cedulaONit ?? "" };
+      }
+      if (documento.entidadTipo === "gestor" && documento.gestorId !== undefined) {
+        const g = await ctx.db.get(documento.gestorId);
+        return { nombre: g?.nombre ?? "(?)", ident: g?.cedulaONit ?? "" };
+      }
+      return { nombre: "(sin entidad)", ident: "" };
+    };
+
+    const filas = [];
+    for (const documento of relevantes) {
+      const { nombre, ident } = await nombreEntidad(documento);
+      const dias =
+        documento.fechaVencimiento !== undefined
+          ? Math.round(
+              (new Date(`${documento.fechaVencimiento}T12:00:00Z`).getTime() -
+                new Date(`${hoy}T12:00:00Z`).getTime()) /
+                86_400_000,
+            )
+          : null;
+      filas.push({
+        documentoId: documento._id,
+        entidadTipo: documento.entidadTipo,
+        entidadNombre: nombre,
+        identificacion: ident,
+        tipoDocumento: documento.tipoDocumento,
+        estado: documento.estado,
+        fechaVencimiento: documento.fechaVencimiento,
+        diasRestantes: dias,
+      });
+    }
+    // Más urgente (menor días restantes) primero.
+    return filas.sort((a, b) => (a.diasRestantes ?? 1e9) - (b.diasRestantes ?? 1e9));
   },
 });
 
