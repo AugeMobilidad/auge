@@ -452,6 +452,7 @@ export default defineSchema({
     .index("by_telegramUserId", ["telegramUserId"])
     .index("by_telegramChatId", ["telegramChatId"])
     .index("by_conductor_estado", ["conductorId", "estado"])
+    .index("by_estado", ["estado"])
     .index("by_usuarioSistema", ["usuarioSistemaId"]),
 
   auditoriaAcciones: defineTable({

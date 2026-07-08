@@ -1943,6 +1943,84 @@ export const registrarAuditoriaAccion = internalMutation({
   },
 });
 
+async function vincularCuentaTelegramHelper(
+  ctx: MutationCtx,
+  actor: ActorAuditoria,
+  args: {
+    telegramUserId: string;
+    telegramChatId: string;
+    username?: string;
+    telefono?: string;
+    conductorId?: Id<"conductores">;
+    usuarioSistemaId?: Id<"usuariosSistema">;
+  },
+) {
+  if (args.conductorId !== undefined) {
+    const conductor = await ctx.db.get(args.conductorId);
+    if (conductor === null) throw new Error("Conductor no encontrado");
+  }
+  if (args.usuarioSistemaId !== undefined) {
+    const usuario = await ctx.db.get(args.usuarioSistemaId);
+    if (usuario === null) throw new Error("Usuario del sistema no encontrado");
+  }
+  const estado =
+    args.conductorId !== undefined || args.usuarioSistemaId !== undefined
+      ? "vinculada"
+      : "pendienteVerificacion";
+  const existente = await ctx.db
+    .query("telegramCuentas")
+    .withIndex("by_telegramUserId", (q) => q.eq("telegramUserId", args.telegramUserId))
+    .unique();
+  // Una cuenta ya vinculada no se re-apunta a otro conductor/usuario por esta
+  // vía: hay que desvincularla primero (evita tomas de cuenta silenciosas).
+  if (existente !== null && existente.estado === "vinculada") {
+    const cambiaConductor =
+      args.conductorId !== undefined &&
+      existente.conductorId !== undefined &&
+      args.conductorId !== existente.conductorId;
+    const cambiaUsuario =
+      args.usuarioSistemaId !== undefined &&
+      existente.usuarioSistemaId !== undefined &&
+      args.usuarioSistemaId !== existente.usuarioSistemaId;
+    if (cambiaConductor || cambiaUsuario) {
+      throw new Error(
+        "La cuenta de Telegram ya está vinculada a otra identidad; desvincúlela primero",
+      );
+    }
+  }
+  let cuentaId: Id<"telegramCuentas">;
+  if (existente !== null) {
+    await ctx.db.patch(existente._id, {
+      telegramChatId: args.telegramChatId,
+      username: args.username ?? existente.username,
+      telefono: args.telefono ?? existente.telefono,
+      conductorId: args.conductorId ?? existente.conductorId,
+      usuarioSistemaId: args.usuarioSistemaId ?? existente.usuarioSistemaId,
+      estado,
+      fechaVinculacion: Date.now(),
+    });
+    cuentaId = existente._id;
+  } else {
+    cuentaId = await ctx.db.insert("telegramCuentas", {
+      ...args,
+      estado,
+      fechaVinculacion: Date.now(),
+    });
+  }
+  await registrarAuditoria(
+    ctx,
+    actor.actorTipo === "telegram" ? { ...actor, actorId: cuentaId } : actor,
+    {
+      accion: "telegram.vinculada",
+      entidadTipo: "telegramCuentas",
+      entidadId: cuentaId,
+      resultado: "ok",
+      detalle: args.username,
+    },
+  );
+  return cuentaId;
+}
+
 export const vincularCuentaTelegram = mutation({
   args: {
     telegramUserId: v.string(),
@@ -1954,66 +2032,44 @@ export const vincularCuentaTelegram = mutation({
   },
   returns: v.id("telegramCuentas"),
   handler: async (ctx, args) => {
-    if (args.conductorId !== undefined) {
-      const conductor = await ctx.db.get(args.conductorId);
-      if (conductor === null) throw new Error("Conductor no encontrado");
-    }
-    const estado =
-      args.conductorId !== undefined || args.usuarioSistemaId !== undefined
-        ? "vinculada"
-        : "pendienteVerificacion";
-    const existente = await ctx.db
-      .query("telegramCuentas")
-      .withIndex("by_telegramUserId", (q) => q.eq("telegramUserId", args.telegramUserId))
-      .unique();
-    // Una cuenta ya vinculada no se re-apunta a otro conductor/usuario por esta
-    // vía: hay que desvincularla primero (evita tomas de cuenta silenciosas).
-    if (existente !== null && existente.estado === "vinculada") {
-      const cambiaConductor =
-        args.conductorId !== undefined &&
-        existente.conductorId !== undefined &&
-        args.conductorId !== existente.conductorId;
-      const cambiaUsuario =
-        args.usuarioSistemaId !== undefined &&
-        existente.usuarioSistemaId !== undefined &&
-        args.usuarioSistemaId !== existente.usuarioSistemaId;
-      if (cambiaConductor || cambiaUsuario) {
-        throw new Error(
-          "La cuenta de Telegram ya está vinculada a otra identidad; desvincúlela primero",
-        );
-      }
-    }
-    let cuentaId: Id<"telegramCuentas">;
-    if (existente !== null) {
-      await ctx.db.patch(existente._id, {
-        telegramChatId: args.telegramChatId,
-        username: args.username ?? existente.username,
-        telefono: args.telefono ?? existente.telefono,
-        conductorId: args.conductorId ?? existente.conductorId,
-        usuarioSistemaId: args.usuarioSistemaId ?? existente.usuarioSistemaId,
-        estado,
-        fechaVinculacion: Date.now(),
-      });
-      cuentaId = existente._id;
-    } else {
-      cuentaId = await ctx.db.insert("telegramCuentas", {
-        ...args,
-        estado,
-        fechaVinculacion: Date.now(),
-      });
-    }
-    await registrarAuditoria(
+    return await vincularCuentaTelegramHelper(
       ctx,
-      { actorTipo: "telegram", actorId: cuentaId, origen: "telegramBot" },
-      {
-        accion: "telegram.vinculada",
-        entidadTipo: "telegramCuentas",
-        entidadId: cuentaId,
-        resultado: "ok",
-        detalle: args.username,
-      },
+      { actorTipo: "telegram", origen: "telegramBot" },
+      args,
     );
-    return cuentaId;
+  },
+});
+
+export const dashboardVerificarCuentaTelegram = mutation({
+  args: {
+    actorUsuarioSistemaId: v.id("usuariosSistema"),
+    cuentaId: v.id("telegramCuentas"),
+    conductorId: v.optional(v.id("conductores")),
+    usuarioSistemaId: v.optional(v.id("usuariosSistema")),
+  },
+  returns: v.id("telegramCuentas"),
+  handler: async (ctx, args) => {
+    await requerirPermiso(ctx, args.actorUsuarioSistemaId, PERMISOS.administrar);
+    const tieneConductor = args.conductorId !== undefined;
+    const tieneUsuario = args.usuarioSistemaId !== undefined;
+    if (tieneConductor === tieneUsuario) {
+      throw new Error("Debe seleccionar exactamente un conductor o un usuario del sistema");
+    }
+    const cuenta = await ctx.db.get(args.cuentaId);
+    if (cuenta === null) throw new Error("Cuenta de Telegram no encontrada");
+    if (cuenta.estado !== "pendienteVerificacion") {
+      throw new Error(
+        `La cuenta no está pendiente de verificación (estado actual: ${cuenta.estado}); si ya está vinculada, use /desvincular desde Telegram primero`,
+      );
+    }
+    return await vincularCuentaTelegramHelper(ctx, actorUsuario(args.actorUsuarioSistemaId), {
+      telegramUserId: cuenta.telegramUserId,
+      telegramChatId: cuenta.telegramChatId,
+      username: cuenta.username,
+      telefono: cuenta.telefono,
+      conductorId: args.conductorId,
+      usuarioSistemaId: args.usuarioSistemaId,
+    });
   },
 });
 

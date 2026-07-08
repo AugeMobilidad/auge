@@ -6,6 +6,7 @@ export type Ruta =
   | { vista: "despacho" }
   | { vista: "servicio"; id: Id<"serviciosTransporte"> }
   | { vista: "incidencias" }
+  | { vista: "telegram" }
   | { vista: "disponibilidad" }
   | { vista: "control" };
 
@@ -23,6 +24,8 @@ function leerHash(): Ruta {
         : { vista: "despacho" };
     case "incidencias":
       return { vista: "incidencias" };
+    case "telegram":
+      return { vista: "telegram" };
     case "disponibilidad":
       return { vista: "disponibilidad" };
     case "control":

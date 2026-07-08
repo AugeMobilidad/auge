@@ -30,6 +30,9 @@ export function useAcciones() {
   const programarMantenimiento = useMutation(
     api.accionesOperativas.dashboardProgramarMantenimiento,
   );
+  const verificarCuentaTelegram = useMutation(
+    api.accionesOperativas.dashboardVerificarCuentaTelegram,
+  );
 
   return useMemo(() => {
     const id = actor.id;
@@ -54,6 +57,8 @@ export function useAcciones() {
         actualizarDocumento({ ...a, actorUsuarioSistemaId: id }),
       programarMantenimiento: (a: SinActor<Args<typeof programarMantenimiento>>) =>
         programarMantenimiento({ ...a, actorUsuarioSistemaId: id }),
+      verificarCuentaTelegram: (a: SinActor<Args<typeof verificarCuentaTelegram>>) =>
+        verificarCuentaTelegram({ ...a, actorUsuarioSistemaId: id }),
     };
   }, [
     actor.id,
@@ -67,5 +72,6 @@ export function useAcciones() {
     aprobarLiquidacion,
     actualizarDocumento,
     programarMantenimiento,
+    verificarCuentaTelegram,
   ]);
 }
