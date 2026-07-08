@@ -109,7 +109,7 @@ export function AsignarModal({
             type="checkbox"
             checked={confirmar}
             onChange={(e) => setConfirmar(e.target.checked)}
-            className="h-4 w-4 accent-[#f5a524]"
+            className="h-4 w-4 accent-[#007e84]"
           />
           Confirmar inmediatamente (pasa el servicio a <span className="text-fg">asignado</span>)
         </label>

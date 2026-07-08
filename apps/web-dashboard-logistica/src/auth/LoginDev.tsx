@@ -28,10 +28,10 @@ export function LoginDev() {
           </div>
           <div>
             <div className="font-display text-2xl font-extrabold tracking-tight">
-              Auge · Control de Operaciones
+              Auge <span className="text-signal">Movilidad</span>
             </div>
             <div className="font-mono text-[11px] uppercase tracking-[0.2em] text-faint">
-              Acceso de desarrollo
+              Control de operaciones · acceso de desarrollo
             </div>
           </div>
         </div>

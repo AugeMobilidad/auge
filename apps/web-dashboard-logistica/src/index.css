@@ -1,33 +1,41 @@
 @import "tailwindcss";
 
 /* =========================================================================
-   Sistema de diseño — "Sala de control" de operaciones Auge.
-   Base tinta fría, un único acento ámbar de señalización, semántica de estado.
+   Sistema de diseño — Operaciones Auge Movilidad.
+   Luz de oficina, tinta verde-azulada de marca (#007E84), semántica de estado
+   accesible sobre claro. Hereda la retícula técnica como textura sutil.
    ========================================================================= */
 @theme {
-  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", monospace;
-  --font-display: "Archivo", "IBM Plex Sans", sans-serif;
+  --font-display: "Inter", ui-sans-serif, system-ui, sans-serif;
 
-  --color-base-950: #0b0e13;
-  --color-base-900: #0f131a;
-  --color-panel-850: #141922;
-  --color-panel-800: #191f2a;
-  --color-panel-750: #212836;
-  --color-line: #29313f;
-  --color-line-soft: #1e2531;
+  /* Lienzo y superficies (de fondo a elevado) */
+  --color-base-950: #f2f5f5;
+  --color-base-900: #ffffff;
+  --color-panel-850: #ffffff;
+  --color-panel-800: #eef2f2;
+  --color-panel-750: #e3eaea;
+  --color-line: #dbe3e4;
+  --color-line-soft: #e9eeef;
 
-  --color-fg: #e7ebf2;
-  --color-muted: #8b95a7;
-  --color-faint: #5c6678;
+  /* Tinta */
+  --color-fg: #1a262b;
+  --color-muted: #55666c;
+  --color-faint: #78888e;
 
-  --color-signal: #f5a524;
-  --color-signal-ink: #2a1e08;
+  /* Acento de marca */
+  --color-signal: #007e84;
+  --color-signal-ink: #ffffff;
 
-  --color-ok: #35d39a;
-  --color-warn: #fbbf24;
-  --color-crit: #fb7185;
-  --color-info: #56b6e6;
+  /* Semántica de estado (contraste AA sobre superficies claras) */
+  --color-ok: #157a4e;
+  --color-warn: #a16207;
+  --color-crit: #c72c41;
+  --color-info: #1e6fa8;
+
+  /* Velo para modales */
+  --color-scrim: #10282b;
 }
 
 @layer base {
@@ -35,7 +43,7 @@
     border-color: var(--color-line);
   }
   html {
-    color-scheme: dark;
+    color-scheme: light;
   }
   body {
     margin: 0;
@@ -44,11 +52,11 @@
     font-family: var(--font-sans);
     font-feature-settings: "cv05", "ss01";
     -webkit-font-smoothing: antialiased;
-    /* Atmósfera: retícula técnica muy tenue + halo ámbar en la esquina. */
+    /* Atmósfera: retícula técnica muy tenue + lavado teal en la esquina. */
     background-image:
-      radial-gradient(900px 500px at 100% -5%, rgba(245, 165, 36, 0.06), transparent 60%),
-      linear-gradient(var(--color-line-soft) 1px, transparent 1px),
-      linear-gradient(90deg, var(--color-line-soft) 1px, transparent 1px);
+      radial-gradient(900px 480px at 100% -5%, rgba(0, 126, 132, 0.07), transparent 60%),
+      linear-gradient(rgba(26, 38, 43, 0.028) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(26, 38, 43, 0.028) 1px, transparent 1px);
     background-size:
       100% 100%,
       44px 44px,
@@ -67,12 +75,12 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: var(--color-panel-750);
+    background: #c7d2d4;
     border-radius: 999px;
     border: 2px solid var(--color-base-950);
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: var(--color-line);
+    background: #aebcbf;
   }
   :focus-visible {
     outline: 2px solid var(--color-signal);
@@ -82,10 +90,10 @@
 
 @layer components {
   .panel {
-    background-color: color-mix(in srgb, var(--color-panel-850) 88%, transparent);
+    background-color: var(--color-panel-850);
     border: 1px solid var(--color-line);
     border-radius: 14px;
-    backdrop-filter: blur(6px);
+    box-shadow: 0 1px 2px rgba(16, 40, 43, 0.05);
   }
   .eyebrow {
     font-family: var(--font-mono);
@@ -121,5 +129,11 @@
   }
   .pulso {
     animation: pulso-señal 1.8s ease-in-out infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .surgir,
+    .pulso {
+      animation: none;
+    }
   }
 }

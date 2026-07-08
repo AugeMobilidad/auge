@@ -250,7 +250,7 @@ export function ProgramaModal({
         <Campo texto="Descripción"><Input value={descripcion} onChange={(e) => setDescripcion(e.target.value)} /></Campo>
         <Campo texto="Reglas"><Input value={reglas} onChange={(e) => setReglas(e.target.value)} /></Campo>
         <label className="flex items-center gap-2 text-[13px] text-muted">
-          <input type="checkbox" checked={requiereReporte} onChange={(e) => setRequiereReporte(e.target.checked)} className="h-4 w-4 accent-[#f5a524]" />
+          <input type="checkbox" checked={requiereReporte} onChange={(e) => setRequiereReporte(e.target.checked)} className="h-4 w-4 accent-[#007e84]" />
           Requiere reporte periódico
         </label>
         <ErrorLinea mensaje={error} />
@@ -349,7 +349,7 @@ export function OperacionModal({
         <Campo texto="Responsable"><Input value={responsable} onChange={(e) => setResponsable(e.target.value)} /></Campo>
         <Campo texto="Nivel"><Select value={nivelControl} onChange={(e) => setNivelControl(e.target.value as typeof nivelControl)}>{NIVELES_CONTROL.map((n) => <option key={n} value={n}>{n}</option>)}</Select></Campo>
         <label className="flex items-center gap-2 text-[13px] text-muted">
-          <input type="checkbox" checked={centroControl} onChange={(e) => setCentroControl(e.target.checked)} className="h-4 w-4 accent-[#f5a524]" />
+          <input type="checkbox" checked={centroControl} onChange={(e) => setCentroControl(e.target.checked)} className="h-4 w-4 accent-[#007e84]" />
           Requiere centro de control
         </label>
         <ErrorLinea mensaje={error} />
@@ -432,7 +432,7 @@ export function RutaModal({
         <div className="grid grid-cols-2 gap-3">
           <Campo texto="Capacidad"><Input type="number" value={capacidad} onChange={(e) => setCapacidad(e.target.value)} /></Campo>
           <label className="mt-6 flex items-center gap-2 text-[13px] text-muted">
-            <input type="checkbox" checked={activa} onChange={(e) => setActiva(e.target.checked)} className="h-4 w-4 accent-[#f5a524]" />
+            <input type="checkbox" checked={activa} onChange={(e) => setActiva(e.target.checked)} className="h-4 w-4 accent-[#007e84]" />
             Ruta activa
           </label>
         </div>
@@ -521,7 +521,7 @@ export function ParadaModal({
           <Campo texto="Ventana fin"><Input type="time" value={ventanaFin} onChange={(e) => setVentanaFin(e.target.value)} /></Campo>
         </div>
         <label className="flex items-center gap-2 text-[13px] text-muted">
-          <input type="checkbox" checked={activa} onChange={(e) => setActiva(e.target.checked)} className="h-4 w-4 accent-[#f5a524]" />
+          <input type="checkbox" checked={activa} onChange={(e) => setActiva(e.target.checked)} className="h-4 w-4 accent-[#007e84]" />
           Parada activa
         </label>
         <ErrorLinea mensaje={error} />

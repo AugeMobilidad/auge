@@ -108,7 +108,7 @@ export function MantenimientoModal({
             type="checkbox"
             checked={poner}
             onChange={(e) => setPoner(e.target.checked)}
-            className="h-4 w-4 accent-[#f5a524]"
+            className="h-4 w-4 accent-[#007e84]"
           />
           Poner el vehículo en mantenimiento ahora
         </label>

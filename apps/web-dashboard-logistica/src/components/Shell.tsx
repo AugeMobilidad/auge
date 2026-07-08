@@ -52,8 +52,10 @@ function Marca() {
         </svg>
       </div>
       <div className="leading-none">
-        <div className="font-display text-[15px] font-extrabold tracking-tight">AUGE</div>
-        <div className="font-mono text-[9px] uppercase tracking-[0.22em] text-faint">
+        <div className="font-display text-[15px] font-extrabold tracking-tight">
+          AUGE<span className="ml-1 font-semibold tracking-normal text-signal">Movilidad</span>
+        </div>
+        <div className="mt-1 font-mono text-[9px] uppercase tracking-[0.22em] text-faint">
           Operaciones
         </div>
       </div>

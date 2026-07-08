@@ -183,7 +183,7 @@ export function ResolverIncidenciaModal({
             type="checkbox"
             checked={cerrar}
             onChange={(e) => setCerrar(e.target.checked)}
-            className="h-4 w-4 accent-[#f5a524]"
+            className="h-4 w-4 accent-[#007e84]"
           />
           Cerrar la incidencia (no solo marcar resuelta)
         </label>

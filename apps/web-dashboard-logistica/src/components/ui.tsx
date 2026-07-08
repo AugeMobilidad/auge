@@ -112,7 +112,7 @@ export function PrioridadBadge({ prioridad }: { prioridad: string }) {
 type BotonVar = "primario" | "sutil" | "fantasma" | "peligro";
 const BOTON_VAR: Record<BotonVar, string> = {
   primario:
-    "bg-signal text-signal-ink hover:bg-signal/90 font-semibold shadow-[0_1px_0_rgba(255,255,255,0.15)_inset]",
+    "bg-signal text-signal-ink hover:bg-[#006b70] font-semibold shadow-[0_1px_0_rgba(255,255,255,0.18)_inset]",
   sutil: "bg-panel-750 text-fg hover:bg-line ring-1 ring-inset ring-line",
   fantasma: "text-muted hover:text-fg hover:bg-panel-750/70",
   peligro: "bg-crit/15 text-crit hover:bg-crit/25 ring-1 ring-inset ring-crit/30",
@@ -229,7 +229,7 @@ export function Modal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-base-950/70 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-scrim/50 p-4 backdrop-blur-sm"
       onClick={onCerrar}
     >
       <div

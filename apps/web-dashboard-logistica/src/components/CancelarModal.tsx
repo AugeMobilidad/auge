@@ -67,7 +67,7 @@ export function CancelarModal({
             type="checkbox"
             checked={fallido}
             onChange={(e) => setFallido(e.target.checked)}
-            className="h-4 w-4 accent-[#fb7185]"
+            className="h-4 w-4 accent-[#c72c41]"
           />
           Marcar como <span className="text-crit">fallido</span> (hubo asignación activa)
         </label>

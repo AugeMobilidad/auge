@@ -44,13 +44,13 @@ function Tile({
 }
 
 const SEGMENTOS: Array<{ clave: string; etiqueta: string; color: string }> = [
-  { clave: "programado", etiqueta: "Programado", color: "#5c6678" },
-  { clave: "asignado", etiqueta: "Asignado", color: "#56b6e6" },
-  { clave: "enPreparacion", etiqueta: "Preparación", color: "#f5a524" },
-  { clave: "enCurso", etiqueta: "En curso", color: "#35d39a" },
-  { clave: "completado", etiqueta: "Completado", color: "#2f8f6c" },
-  { clave: "cancelado", etiqueta: "Cancelado", color: "#3a4353" },
-  { clave: "fallido", etiqueta: "Fallido", color: "#fb7185" },
+  { clave: "programado", etiqueta: "Programado", color: "#9fadb2" },
+  { clave: "asignado", etiqueta: "Asignado", color: "#1e6fa8" },
+  { clave: "enPreparacion", etiqueta: "Preparación", color: "#00a3ab" },
+  { clave: "enCurso", etiqueta: "En curso", color: "#1a9d64" },
+  { clave: "completado", etiqueta: "Completado", color: "#157a4e" },
+  { clave: "cancelado", etiqueta: "Cancelado", color: "#c9d3d5" },
+  { clave: "fallido", etiqueta: "Fallido", color: "#c72c41" },
 ];
 
 export function Resumen() {
