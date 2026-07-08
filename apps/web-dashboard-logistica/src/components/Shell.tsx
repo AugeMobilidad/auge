@@ -8,6 +8,7 @@ import {
   IconResumen,
   IconDespacho,
   IconIncidencias,
+  IconTelegram,
   IconDisponibilidad,
   IconControl,
   IconSalir,
@@ -23,6 +24,7 @@ const ITEMS: ItemNav[] = [
   { vista: "resumen", etiqueta: "Resumen", Icono: IconResumen },
   { vista: "despacho", etiqueta: "Despacho", Icono: IconDespacho },
   { vista: "incidencias", etiqueta: "Incidencias", Icono: IconIncidencias },
+  { vista: "telegram", etiqueta: "Telegram", Icono: IconTelegram },
   { vista: "disponibilidad", etiqueta: "Disponibilidad", Icono: IconDisponibilidad },
   { vista: "control", etiqueta: "Control operacional", Icono: IconControl },
 ];
@@ -32,6 +34,7 @@ const TITULOS: Record<string, { eyebrow: string; titulo: string }> = {
   despacho: { eyebrow: "Fila de despacho", titulo: "Despacho del día" },
   servicio: { eyebrow: "Trazabilidad", titulo: "Detalle de servicio" },
   incidencias: { eyebrow: "Cola de gestión", titulo: "Incidencias abiertas" },
+  telegram: { eyebrow: "Identidades", titulo: "Verificación de Telegram" },
   disponibilidad: { eyebrow: "Flota y cumplimiento", titulo: "Disponibilidad" },
   control: { eyebrow: "Señales de calidad", titulo: "Control operacional" },
 };

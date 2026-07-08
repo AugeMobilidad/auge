@@ -111,6 +111,106 @@ export const dashboardResumenOperativo = query({
 });
 
 // ---------------------------------------------------------------------------
+// Verificación de Telegram
+// ---------------------------------------------------------------------------
+
+export const dashboardTelegramPendientes = query({
+  args: {},
+  returns: v.array(
+    v.object({
+      cuentaId: v.id("telegramCuentas"),
+      telegramUserId: v.string(),
+      telegramChatId: v.string(),
+      username: v.optional(v.string()),
+      telefono: v.optional(v.string()),
+      solicitadaEn: v.optional(v.number()),
+    }),
+  ),
+  handler: async (ctx) => {
+    const cuentas = await ctx.db
+      .query("telegramCuentas")
+      .withIndex("by_estado", (q) => q.eq("estado", "pendienteVerificacion"))
+      .collect();
+    return cuentas
+      .sort((a, b) => (b.fechaVinculacion ?? 0) - (a.fechaVinculacion ?? 0))
+      .map((cuenta) => ({
+        cuentaId: cuenta._id,
+        telegramUserId: cuenta.telegramUserId,
+        telegramChatId: cuenta.telegramChatId,
+        username: cuenta.username,
+        telefono: cuenta.telefono,
+        solicitadaEn: cuenta.fechaVinculacion,
+      }));
+  },
+});
+
+export const dashboardTelegramCandidatos = query({
+  args: {},
+  returns: v.object({
+    conductores: v.array(
+      v.object({
+        conductorId: v.id("conductores"),
+        nombre: v.string(),
+        cedula: v.string(),
+        telefono: v.string(),
+      }),
+    ),
+    usuariosSistema: v.array(
+      v.object({
+        usuarioSistemaId: v.id("usuariosSistema"),
+        nombre: v.string(),
+        tipoUsuario: v.string(),
+        telefono: v.optional(v.string()),
+        email: v.optional(v.string()),
+      }),
+    ),
+  }),
+  handler: async (ctx) => {
+    const conductores = await ctx.db
+      .query("conductores")
+      .withIndex("by_estado", (q) => q.eq("estado", "activo"))
+      .collect();
+    const usuariosSistema = [];
+    const tipos = [
+      "operadorLogistico",
+      "coordinador",
+      "conductor",
+      "propietario",
+      "gestor",
+      "cliente",
+      "admin",
+      "sistema",
+    ] as const;
+    for (const tipo of tipos) {
+      const usuarios = await ctx.db
+        .query("usuariosSistema")
+        .withIndex("by_tipo_estado", (q) => q.eq("tipoUsuario", tipo).eq("estado", "activo"))
+        .collect();
+      usuariosSistema.push(...usuarios);
+    }
+    return {
+      conductores: conductores
+        .map((conductor) => ({
+          conductorId: conductor._id,
+          nombre: conductor.nombre,
+          cedula: conductor.cedula,
+          telefono: conductor.telefono,
+        }))
+        .sort((a, b) => a.nombre.localeCompare(b.nombre)),
+      usuariosSistema: usuariosSistema
+        .map((usuario) => ({
+          usuarioSistemaId: usuario._id,
+          nombre: usuario.nombre,
+          tipoUsuario: usuario.tipoUsuario,
+          telefono: usuario.telefono,
+          email: usuario.email,
+        }))
+        .sort((a, b) => a.nombre.localeCompare(b.nombre)),
+    };
+  },
+});
+
+// ---------------------------------------------------------------------------
 // Tablero de despacho
 // ---------------------------------------------------------------------------
 

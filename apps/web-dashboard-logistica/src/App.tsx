@@ -6,6 +6,7 @@ import { Resumen } from "@/views/Resumen";
 import { Despacho } from "@/views/Despacho";
 import { DetalleServicio } from "@/views/DetalleServicio";
 import { Incidencias } from "@/views/Incidencias";
+import { VerificacionTelegram } from "@/views/VerificacionTelegram";
 import { Disponibilidad } from "@/views/Disponibilidad";
 import { ControlOperacional } from "@/views/ControlOperacional";
 
@@ -33,6 +34,8 @@ function Enrutador() {
       return <DetalleServicio servicioId={ruta.id} />;
     case "incidencias":
       return <Incidencias />;
+    case "telegram":
+      return <VerificacionTelegram />;
     case "disponibilidad":
       return <Disponibilidad />;
     case "control":
