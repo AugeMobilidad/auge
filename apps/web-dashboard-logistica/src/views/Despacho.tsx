@@ -13,6 +13,7 @@ import {
 } from "@/components/ui";
 import { AsignarModal } from "@/components/AsignarModal";
 import { CancelarModal } from "@/components/CancelarModal";
+import { CrearServicioModal } from "@/components/CrearServicioModal";
 import { useNavegar } from "@/lib/rutas";
 import { usePermiso } from "@/auth/session";
 import { hoyBogota, fmtFecha } from "@/lib/formato";
@@ -26,6 +27,7 @@ export function Despacho() {
   const [asignar, setAsignar] = useState<Id<"serviciosTransporte"> | null>(null);
   const [reasignar, setReasignar] = useState<Id<"serviciosTransporte"> | null>(null);
   const [cancelar, setCancelar] = useState<Id<"serviciosTransporte"> | null>(null);
+  const [crear, setCrear] = useState(false);
 
   return (
     <div className="space-y-6">
@@ -40,7 +42,11 @@ export function Despacho() {
           />
           <span className="text-sm capitalize text-muted">{fmtFecha(fecha)}</span>
         </div>
-        {!puedeDespachar && (
+        {puedeDespachar ? (
+          <Boton variante="primario" onClick={() => setCrear(true)}>
+            Crear servicio
+          </Boton>
+        ) : (
           <Badge tono="warn">Sin permiso de despacho — solo lectura</Badge>
         )}
       </div>
@@ -188,6 +194,7 @@ export function Despacho() {
       {cancelar !== null && (
         <CancelarModal servicioId={cancelar} onCerrar={() => setCancelar(null)} />
       )}
+      {crear && <CrearServicioModal fechaInicial={fecha} onCerrar={() => setCrear(false)} />}
     </div>
   );
 }

@@ -38,8 +38,8 @@ convex/                      ← ONTOLOGÍA + ACCIONES DE DATOS (fuente de verda
   auditoria.ts                 Registro de auditoría de transiciones importantes
 
 apps/
-  web-dashboard-logistica/   ← Dashboard web de logística y operaciones (React),
-                               construido en paralelo, consume `appDashboard.ts`
+  web-dashboard-logistica/   ← Dashboard web de logística y operaciones
+                               (Vite + React + Tailwind), consume `appDashboard.ts`
   telegram-operaciones-bot/  ← Bot de Telegram (GramIO) para conductores y
                                comandos ligeros de coordinadores, consume
                                `appTelegram.ts` / `accionesOperativas.ts`
@@ -69,11 +69,15 @@ apps/
 bun install
 bunx convex dev --local
 
+# Dashboard web (requiere VITE_CONVEX_URL, ver apps/web-dashboard-logistica/.env.example)
+bun run --cwd apps/web-dashboard-logistica dev
+
 # Bot de Telegram (requiere BOT_TOKEN y CONVEX_URL en el entorno)
 bun run --cwd apps/telegram-operaciones-bot start
 ```
 
-Aún **no** existe UI del dashboard: solo contratos y estructura para
-construirla sin rediseñar el backend. El bot de Telegram sí es funcional; ver
-`apps/telegram-operaciones-bot/README.md` para los comandos y el flujo de
-vinculación de cuentas.
+Ambas apps son funcionales contra el deployment local. El dashboard usa un
+login de desarrollo (selector de `usuariosSistema`); la ruta de migración a
+auth real está documentada en `apps/web-dashboard-logistica/README.md`. Los
+comandos del bot y el flujo de vinculación de cuentas están en
+`apps/telegram-operaciones-bot/README.md`.
