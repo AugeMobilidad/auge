@@ -956,3 +956,94 @@ export const dashboardLiquidaciones = query({
     };
   },
 });
+
+// ---------------------------------------------------------------------------
+// Datos maestros seguros para crear servicios desde despacho
+// ---------------------------------------------------------------------------
+
+export const dashboardOperacionesActivas = query({
+  args: {},
+  returns: v.array(
+    v.object({
+      operacionId: v.id("operaciones"),
+      nombre: v.string(),
+      tipoOperacion: v.string(),
+      estado: v.string(),
+    }),
+  ),
+  handler: async (ctx) => {
+    const filas = [];
+    for (const estado of ["planificada", "enCurso"] as const) {
+      const operaciones = await ctx.db
+        .query("operaciones")
+        .withIndex("by_estado", (q) => q.eq("estado", estado))
+        .collect();
+      for (const operacion of operaciones) {
+        filas.push({
+          operacionId: operacion._id,
+          nombre: operacion.nombre,
+          tipoOperacion: operacion.tipoOperacion,
+          estado: operacion.estado,
+        });
+      }
+    }
+    return filas.sort((a, b) => a.nombre.localeCompare(b.nombre));
+  },
+});
+
+export const dashboardRutasActivas = query({
+  args: {},
+  returns: v.array(
+    v.object({
+      rutaId: v.id("rutas"),
+      nombre: v.string(),
+      origenPrincipal: v.string(),
+      destinoPrincipal: v.string(),
+    }),
+  ),
+  handler: async (ctx) => {
+    const rutas = await ctx.db
+      .query("rutas")
+      .withIndex("by_activa_tipo", (q) => q.eq("activa", true))
+      .collect();
+    return rutas
+      .map((ruta) => ({
+        rutaId: ruta._id,
+        nombre: ruta.nombre,
+        origenPrincipal: ruta.origenPrincipal,
+        destinoPrincipal: ruta.destinoPrincipal,
+      }))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre));
+  },
+});
+
+export const dashboardSolicitudesDisponibles = query({
+  args: {},
+  returns: v.array(
+    v.object({
+      solicitudId: v.id("solicitudesServicio"),
+      clienteNombre: v.string(),
+      origenTexto: v.string(),
+      destinoTexto: v.string(),
+    }),
+  ),
+  handler: async (ctx) => {
+    const filas = [];
+    for (const estado of ["recibida", "validada"] as const) {
+      const solicitudes = await ctx.db
+        .query("solicitudesServicio")
+        .withIndex("by_estado", (q) => q.eq("estado", estado))
+        .collect();
+      for (const solicitud of solicitudes) {
+        const cliente = await ctx.db.get(solicitud.clienteId);
+        filas.push({
+          solicitudId: solicitud._id,
+          clienteNombre: cliente?.nombre ?? "(sin cliente)",
+          origenTexto: solicitud.origenTexto ?? "(sin origen)",
+          destinoTexto: solicitud.destinoTexto ?? "(sin destino)",
+        });
+      }
+    }
+    return filas.sort((a, b) => a.clienteNombre.localeCompare(b.clienteNombre));
+  },
+});
