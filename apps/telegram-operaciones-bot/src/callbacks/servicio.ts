@@ -6,6 +6,7 @@
  * Telegram apague el spinner del botón, y delega el trabajo de negocio en
  * `flujos.ts` cuando se trata del último paso de un asistente.
  */
+import { ForceReplyKeyboard } from "gramio";
 import { api } from "../tipos";
 import type { Id } from "../tipos";
 import { convex } from "../convex";
@@ -81,7 +82,9 @@ export function registrarCallbacksServicio(bot: AugeBot): void {
         return;
       }
       iniciarAsistente(chatId, { tipo: "rechazar", asignacionId, servicioId });
-      await ctx.send(mensajePideMotivoRechazo());
+      await ctx.send(mensajePideMotivoRechazo(), {
+        reply_markup: new ForceReplyKeyboard().placeholder("Motivo del rechazo"),
+      });
     });
   });
 
@@ -214,7 +217,9 @@ export function registrarCallbacksServicio(bot: AugeBot): void {
       1,
     ) as typeof asistente.severidad;
     asistente.paso = "descripcion";
-    await ctx.send(mensajePideDescripcionIncidencia());
+    await ctx.send(mensajePideDescripcionIncidencia(), {
+      reply_markup: new ForceReplyKeyboard().placeholder("¿Qué pasó?"),
+    });
   });
 
   // --- Cierre de servicio ---

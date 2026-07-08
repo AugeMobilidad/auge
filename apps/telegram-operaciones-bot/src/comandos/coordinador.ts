@@ -1,76 +1,36 @@
 /**
  * Comandos ligeros de coordinador: /incidencias (globales) y /operacion
- * (estado corto). Solo responden si la cuenta vinculada es de
- * coordinador/operador/admin (`esCoordinador`, resuelto por Convex).
+ * (estado corto). Son atajos escritos de los botones del menú de /start: la
+ * lógica (incluida la validación de rol) vive en `../acciones.ts`.
  */
-import { api } from "../tipos";
-import type { Id } from "../tipos";
-import { convex } from "../convex";
 import type { AugeBot } from "../bot";
-import { requerirCuentaVinculada, telegramUserIdDe } from "../identidad";
-import {
-  lineaIncidencia,
-  mensajeEstadoOperacion,
-  mensajeFaltaOperacionId,
-  mensajeOperacionNoEncontrada,
-  mensajeSinIncidencias,
-  mensajeSoloCoordinadores,
-} from "../mensajes";
+import { telegramUserIdDe } from "../identidad";
+import { mostrarEstadoOperacion, mostrarIncidenciasAbiertas } from "../acciones";
+import { mensajeFaltaOperacionId } from "../mensajes";
 import { ejecutarConManejoDeErrores } from "../errores";
 import { registrarUltimoComando } from "../telemetria";
 
 export function registrarComandosCoordinador(bot: AugeBot): void {
-  bot.command("incidencias", async (ctx) => {
+  bot.command("incidencias", { description: "Incidencias abiertas (coordinación)" }, async (ctx) => {
     const telegramUserId = telegramUserIdDe(ctx);
-    await ejecutarConManejoDeErrores(ctx, async () => {
-      const resultado = await requerirCuentaVinculada(telegramUserId);
-      if (!resultado.ok) {
-        await ctx.send(resultado.mensaje);
-        return;
-      }
-      if (!resultado.cuenta.esCoordinador) {
-        await ctx.send(mensajeSoloCoordinadores());
-        return;
-      }
-      const incidencias = await convex.query(api.appTelegram.telegramIncidenciasAbiertas, {
-        telegramUserId,
-      });
-      if (incidencias.length === 0) {
-        await ctx.send(mensajeSinIncidencias());
-        return;
-      }
-      await ctx.send(incidencias.map(lineaIncidencia).join("\n\n"));
-    });
+    await ejecutarConManejoDeErrores(ctx, () => mostrarIncidenciasAbiertas(ctx, telegramUserId));
     registrarUltimoComando(telegramUserId);
   });
 
-  bot.command("operacion", async (ctx) => {
-    const telegramUserId = telegramUserIdDe(ctx);
-    await ejecutarConManejoDeErrores(ctx, async () => {
-      const resultado = await requerirCuentaVinculada(telegramUserId);
-      if (!resultado.ok) {
-        await ctx.send(resultado.mensaje);
-        return;
-      }
-      if (!resultado.cuenta.esCoordinador) {
-        await ctx.send(mensajeSoloCoordinadores());
-        return;
-      }
-      const operacionId = ctx.args?.trim();
-      if (operacionId === undefined || operacionId.length === 0) {
-        await ctx.send(mensajeFaltaOperacionId());
-        return;
-      }
-      const estado = await convex.query(api.appTelegram.telegramEstadoOperacion, {
-        telegramUserId,
-        operacionId: operacionId as Id<"operaciones">,
+  bot.command(
+    "operacion",
+    { description: "Estado corto de una operación (coordinación)" },
+    async (ctx) => {
+      const telegramUserId = telegramUserIdDe(ctx);
+      await ejecutarConManejoDeErrores(ctx, async () => {
+        const operacionId = ctx.args?.trim();
+        if (operacionId === undefined || operacionId.length === 0) {
+          await ctx.send(mensajeFaltaOperacionId());
+          return;
+        }
+        await mostrarEstadoOperacion(ctx, telegramUserId, operacionId);
       });
-      if (estado === null) {
-        await ctx.send(mensajeOperacionNoEncontrada());
-        return;
-      }
-      await ctx.send(mensajeEstadoOperacion(estado));
-    });
-    registrarUltimoComando(telegramUserId);
-  });
+      registrarUltimoComando(telegramUserId);
+    },
+  );
 }

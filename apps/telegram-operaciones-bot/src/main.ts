@@ -16,6 +16,7 @@ import { registrarComandosVinculacion } from "./comandos/vinculacion";
 import { registrarComandosConductor } from "./comandos/conductor";
 import { registrarComandosCoordinador } from "./comandos/coordinador";
 import { registrarCallbacksServicio } from "./callbacks/servicio";
+import { registrarCallbacksMenu } from "./callbacks/menu";
 import { registrarEntradas } from "./entradas";
 import { mensajeErrorGenerico } from "./mensajes";
 
@@ -24,6 +25,7 @@ registrarComandosVinculacion(bot);
 registrarComandosConductor(bot);
 registrarComandosCoordinador(bot);
 registrarCallbacksServicio(bot);
+registrarCallbacksMenu(bot);
 registrarEntradas(bot);
 
 // Red de seguridad: cualquier error no capturado por los handlers (bugs,
@@ -40,8 +42,12 @@ bot.onError(({ context, kind, error }) => {
   return undefined;
 });
 
-bot.onStart(({ info }) => {
+bot.onStart(async ({ info }) => {
   console.log(`[bot] conectado como @${info.username} (long-polling)`);
+  // Publica el menú de comandos de Telegram a partir de las descripciones
+  // registradas en cada `bot.command(nombre, { description }, ...)`.
+  await bot.syncCommands();
+  console.log("[bot] menú de comandos sincronizado (setMyCommands)");
 });
 
 let apagando = false;

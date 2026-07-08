@@ -6,24 +6,29 @@
  *  - texto libre → el siguiente paso del asistente activo (rechazo,
  *    checklist, incidencia, cierre), si hay uno en curso
  */
+import { ForceReplyKeyboard } from "gramio";
 import { api } from "./tipos";
 import type { Id } from "./tipos";
 import { convex } from "./convex";
 import type { AugeBot } from "./bot";
 import { telegramUserIdDe } from "./identidad";
-import { obtenerSesion, fijarObjetivo } from "./estado/sesiones";
+import { obtenerSesion, fijarObjetivo, limpiarAsistente } from "./estado/sesiones";
 import {
   mensajeEvidenciaRegistrada,
   mensajeNumeroInvalido,
   mensajePideCantidadPasajeros,
   mensajePideDescripcionIncidencia,
   mensajePideMotivoRechazo,
+  mensajePideOperacionIdMenu,
+  mensajePideTelefonoVinculacion,
   mensajeSinServicioEnCurso,
+  mensajeSolicitudVinculacionRegistrada,
   mensajeUbicacionRegistrada,
 } from "./mensajes";
 import { tecladoPasajerosCierre } from "./teclados";
 import { ejecutarConManejoDeErrores } from "./errores";
 import { finalizarCierre, finalizarChecklist, finalizarIncidencia, finalizarRechazo } from "./flujos";
+import { mostrarEstadoOperacion } from "./acciones";
 
 /**
  * Resuelve a qué servicio apuntan los próximos reportes de ubicación/
@@ -117,7 +122,9 @@ export function registrarEntradas(bot: AugeBot): void {
         switch (asistente.tipo) {
           case "rechazar": {
             if (texto.length === 0) {
-              await ctx.send(mensajePideMotivoRechazo());
+              await ctx.send(mensajePideMotivoRechazo(), {
+                reply_markup: new ForceReplyKeyboard().placeholder("Motivo del rechazo"),
+              });
               return;
             }
             await finalizarRechazo(ctx, chatId, telegramUserId, asistente.asignacionId, texto);
@@ -137,12 +144,14 @@ export function registrarEntradas(bot: AugeBot): void {
           }
           case "incidencia": {
             if (asistente.paso !== "descripcion") return;
-            if (asistente.incidenciaTipo === undefined || asistente.severidad === undefined) {
-              await ctx.send(mensajePideDescripcionIncidencia());
-              return;
-            }
-            if (texto.length === 0) {
-              await ctx.send(mensajePideDescripcionIncidencia());
+            if (
+              asistente.incidenciaTipo === undefined ||
+              asistente.severidad === undefined ||
+              texto.length === 0
+            ) {
+              await ctx.send(mensajePideDescripcionIncidencia(), {
+                reply_markup: new ForceReplyKeyboard().placeholder("¿Qué pasó?"),
+              });
               return;
             }
             await finalizarIncidencia(
@@ -154,6 +163,34 @@ export function registrarEntradas(bot: AugeBot): void {
               asistente.severidad,
               texto,
             );
+            return;
+          }
+          case "vincularTelefono": {
+            if (texto.length === 0) {
+              await ctx.send(mensajePideTelefonoVinculacion(), {
+                reply_markup: new ForceReplyKeyboard().placeholder("3001234567"),
+              });
+              return;
+            }
+            await convex.mutation(api.accionesOperativas.vincularCuentaTelegram, {
+              telegramUserId,
+              telegramChatId: String(chatId),
+              username: ctx.from?.username,
+              telefono: texto,
+            });
+            limpiarAsistente(chatId);
+            await ctx.send(mensajeSolicitudVinculacionRegistrada());
+            return;
+          }
+          case "operacionId": {
+            if (texto.length === 0) {
+              await ctx.send(mensajePideOperacionIdMenu(), {
+                reply_markup: new ForceReplyKeyboard().placeholder("Id de la operación"),
+              });
+              return;
+            }
+            limpiarAsistente(chatId);
+            await mostrarEstadoOperacion(ctx, telegramUserId, texto);
             return;
           }
           case "cierre": {

@@ -18,10 +18,9 @@ import { api } from "../tipos";
 import { convex } from "../convex";
 import type { AugeBot } from "../bot";
 import { resolverCuenta, telegramUserIdDe } from "../identidad";
+import { ejecutarDesvinculacion } from "../acciones";
 import {
-  mensajeDesvinculada,
   mensajeFaltaTelefono,
-  mensajeSinCuentaParaDesvincular,
   mensajeSolicitudVinculacionRegistrada,
   mensajeYaVinculada,
 } from "../mensajes";
@@ -29,7 +28,7 @@ import { ejecutarConManejoDeErrores } from "../errores";
 import { registrarUltimoComando } from "../telemetria";
 
 export function registrarComandosVinculacion(bot: AugeBot): void {
-  bot.command("vincular", async (ctx) => {
+  bot.command("vincular", { description: "Vincular tu cuenta con tu número de teléfono" }, async (ctx) => {
     const telegramUserId = telegramUserIdDe(ctx);
     await ejecutarConManejoDeErrores(ctx, async () => {
       const telefono = ctx.args?.trim();
@@ -53,19 +52,9 @@ export function registrarComandosVinculacion(bot: AugeBot): void {
     registrarUltimoComando(telegramUserId);
   });
 
-  bot.command("desvincular", async (ctx) => {
+  bot.command("desvincular", { description: "Desvincular tu cuenta de Telegram" }, async (ctx) => {
     const telegramUserId = telegramUserIdDe(ctx);
-    await ejecutarConManejoDeErrores(ctx, async () => {
-      const cuenta = await resolverCuenta(telegramUserId);
-      if (cuenta === null) {
-        await ctx.send(mensajeSinCuentaParaDesvincular());
-        return;
-      }
-      await convex.mutation(api.accionesOperativas.desvincularCuentaTelegram, {
-        telegramUserId,
-      });
-      await ctx.send(mensajeDesvinculada());
-    });
+    await ejecutarConManejoDeErrores(ctx, () => ejecutarDesvinculacion(ctx, telegramUserId));
     registrarUltimoComando(telegramUserId);
   });
 }

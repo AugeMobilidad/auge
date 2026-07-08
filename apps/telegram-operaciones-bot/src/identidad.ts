@@ -6,6 +6,7 @@
  * hacer cada quien. Esto es lo único que nos separa de que un chat
  * malicioso pueda operar servicios ajenos.
  */
+import type { Stringable } from "gramio";
 import { api } from "./tipos";
 import { convex } from "./convex";
 import {
@@ -48,7 +49,7 @@ export async function resolverCuenta(telegramUserId: string): Promise<CuentaResu
 
 export type ResultadoCuenta =
   | { ok: true; cuenta: CuentaVinculada }
-  | { ok: false; mensaje: string };
+  | { ok: false; mensaje: Stringable };
 
 /**
  * Resuelve la cuenta y traduce cualquier estado que no sea `vinculada` a un

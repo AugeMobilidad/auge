@@ -52,11 +52,23 @@ export type AsistenteCierre = {
   notaCierre?: string;
 };
 
+/** Espera el teléfono tras tocar «Vincular mi cuenta» en el menú. */
+export type AsistenteVincularTelefono = {
+  tipo: "vincularTelefono";
+};
+
+/** Espera el id de operación tras tocar «Estado de operación» en el menú. */
+export type AsistenteOperacionId = {
+  tipo: "operacionId";
+};
+
 export type Asistente =
   | AsistenteRechazo
   | AsistenteChecklist
   | AsistenteIncidencia
-  | AsistenteCierre;
+  | AsistenteCierre
+  | AsistenteVincularTelefono
+  | AsistenteOperacionId;
 
 export type SesionChat = {
   /** Servicio sobre el que aplican los próximos mensajes de ubicación/foto. */
