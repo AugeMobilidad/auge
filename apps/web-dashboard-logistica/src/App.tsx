@@ -9,6 +9,7 @@ import { Incidencias } from "@/views/Incidencias";
 import { VerificacionTelegram } from "@/views/VerificacionTelegram";
 import { Disponibilidad } from "@/views/Disponibilidad";
 import { ControlOperacional } from "@/views/ControlOperacional";
+import { Maestros } from "@/views/Maestros";
 
 function Splash() {
   return (
@@ -38,6 +39,8 @@ function Enrutador() {
       return <VerificacionTelegram />;
     case "disponibilidad":
       return <Disponibilidad />;
+    case "maestros":
+      return <Maestros />;
     case "control":
       return <ControlOperacional />;
   }

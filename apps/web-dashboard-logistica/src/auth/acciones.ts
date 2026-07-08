@@ -33,6 +33,25 @@ export function useAcciones() {
   const verificarCuentaTelegram = useMutation(
     api.accionesOperativas.dashboardVerificarCuentaTelegram,
   );
+  const maestroCrearCliente = useMutation(api.accionesOperativas.dashboardMaestroCrearCliente);
+  const maestroActualizarCliente = useMutation(
+    api.accionesOperativas.dashboardMaestroActualizarCliente,
+  );
+  const maestroCrearPrograma = useMutation(api.accionesOperativas.dashboardMaestroCrearPrograma);
+  const maestroCrearOperacion = useMutation(
+    api.accionesOperativas.dashboardMaestroCrearOperacion,
+  );
+  const maestroActualizarOperacion = useMutation(
+    api.accionesOperativas.dashboardMaestroActualizarOperacion,
+  );
+  const maestroCrearRuta = useMutation(api.accionesOperativas.dashboardMaestroCrearRuta);
+  const maestroActualizarRuta = useMutation(
+    api.accionesOperativas.dashboardMaestroActualizarRuta,
+  );
+  const maestroCrearParada = useMutation(api.accionesOperativas.dashboardMaestroCrearParada);
+  const maestroActualizarParada = useMutation(
+    api.accionesOperativas.dashboardMaestroActualizarParada,
+  );
 
   return useMemo(() => {
     const id = actor.id;
@@ -59,6 +78,25 @@ export function useAcciones() {
         programarMantenimiento({ ...a, actorUsuarioSistemaId: id }),
       verificarCuentaTelegram: (a: SinActor<Args<typeof verificarCuentaTelegram>>) =>
         verificarCuentaTelegram({ ...a, actorUsuarioSistemaId: id }),
+      maestroCrearCliente: (a: SinActor<Args<typeof maestroCrearCliente>>) =>
+        maestroCrearCliente({ ...a, actorUsuarioSistemaId: id }),
+      maestroActualizarCliente: (a: SinActor<Args<typeof maestroActualizarCliente>>) =>
+        maestroActualizarCliente({ ...a, actorUsuarioSistemaId: id }),
+      maestroCrearPrograma: (a: SinActor<Args<typeof maestroCrearPrograma>>) =>
+        maestroCrearPrograma({ ...a, actorUsuarioSistemaId: id }),
+      maestroCrearOperacion: (a: SinActor<Args<typeof maestroCrearOperacion>>) =>
+        maestroCrearOperacion({ ...a, actorUsuarioSistemaId: id }),
+      maestroActualizarOperacion: (
+        a: SinActor<Args<typeof maestroActualizarOperacion>>,
+      ) => maestroActualizarOperacion({ ...a, actorUsuarioSistemaId: id }),
+      maestroCrearRuta: (a: SinActor<Args<typeof maestroCrearRuta>>) =>
+        maestroCrearRuta({ ...a, actorUsuarioSistemaId: id }),
+      maestroActualizarRuta: (a: SinActor<Args<typeof maestroActualizarRuta>>) =>
+        maestroActualizarRuta({ ...a, actorUsuarioSistemaId: id }),
+      maestroCrearParada: (a: SinActor<Args<typeof maestroCrearParada>>) =>
+        maestroCrearParada({ ...a, actorUsuarioSistemaId: id }),
+      maestroActualizarParada: (a: SinActor<Args<typeof maestroActualizarParada>>) =>
+        maestroActualizarParada({ ...a, actorUsuarioSistemaId: id }),
     };
   }, [
     actor.id,
@@ -73,5 +111,14 @@ export function useAcciones() {
     actualizarDocumento,
     programarMantenimiento,
     verificarCuentaTelegram,
+    maestroCrearCliente,
+    maestroActualizarCliente,
+    maestroCrearPrograma,
+    maestroCrearOperacion,
+    maestroActualizarOperacion,
+    maestroCrearRuta,
+    maestroActualizarRuta,
+    maestroCrearParada,
+    maestroActualizarParada,
   ]);
 }

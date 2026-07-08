@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { useRuta, useNavegar, type VistaPrincipal } from "@/lib/rutas";
-import { useSesion } from "@/auth/session";
+import { usePermiso, useSesion } from "@/auth/session";
 import { fmtFechaLarga, hoyBogota } from "@/lib/formato";
 import {
   IconResumen,
@@ -10,6 +10,7 @@ import {
   IconIncidencias,
   IconTelegram,
   IconDisponibilidad,
+  IconMaestros,
   IconControl,
   IconSalir,
 } from "./iconos";
@@ -26,6 +27,7 @@ const ITEMS: ItemNav[] = [
   { vista: "incidencias", etiqueta: "Incidencias", Icono: IconIncidencias },
   { vista: "telegram", etiqueta: "Telegram", Icono: IconTelegram },
   { vista: "disponibilidad", etiqueta: "Disponibilidad", Icono: IconDisponibilidad },
+  { vista: "maestros", etiqueta: "Datos maestros", Icono: IconMaestros },
   { vista: "control", etiqueta: "Control operacional", Icono: IconControl },
 ];
 
@@ -36,6 +38,7 @@ const TITULOS: Record<string, { eyebrow: string; titulo: string }> = {
   incidencias: { eyebrow: "Cola de gestión", titulo: "Incidencias abiertas" },
   telegram: { eyebrow: "Identidades", titulo: "Verificación de Telegram" },
   disponibilidad: { eyebrow: "Flota y cumplimiento", titulo: "Disponibilidad" },
+  maestros: { eyebrow: "Configuración operativa", titulo: "Datos maestros" },
   control: { eyebrow: "Señales de calidad", titulo: "Control operacional" },
 };
 
@@ -62,6 +65,7 @@ export function Shell({ children }: { children: ReactNode }) {
   const ruta = useRuta();
   const navegar = useNavegar();
   const { actor, cerrarSesion } = useSesion();
+  const puedeAdministrar = usePermiso("administrar");
   const resumen = useQuery(api.appDashboard.dashboardResumenOperativo, {});
 
   const activa: string = ruta.vista;
@@ -78,7 +82,7 @@ export function Shell({ children }: { children: ReactNode }) {
       <aside className="sticky top-0 flex h-screen w-[236px] shrink-0 flex-col gap-6 border-r border-line bg-base-900/70 px-4 py-5 backdrop-blur">
         <Marca />
         <nav className="flex flex-1 flex-col gap-1">
-          {ITEMS.map(({ vista, etiqueta, Icono }) => {
+          {ITEMS.filter((item) => item.vista !== "maestros" || puedeAdministrar).map(({ vista, etiqueta, Icono }) => {
             const activo =
               activa === vista || (vista === "despacho" && activa === "servicio");
             const conteo = contadores[vista];

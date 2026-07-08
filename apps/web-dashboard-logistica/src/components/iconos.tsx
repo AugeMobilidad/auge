@@ -51,6 +51,13 @@ export const IconControl = (p: P) => (
   </svg>
 );
 
+export const IconMaestros = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M4 5h6v6H4zM14 5h6v6h-6zM4 15h6v4H4zM14 15h6v4h-6z" />
+    <path d="M7 11v4M17 11v4M10 8h4" />
+  </svg>
+);
+
 export const IconTelegram = (p: P) => (
   <svg {...base(p)}>
     <path d="M21 4 3 11l7 2 2 7 3-5 4 3 2-14Z" />
