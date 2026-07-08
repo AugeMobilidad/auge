@@ -956,3 +956,206 @@ export const dashboardLiquidaciones = query({
     };
   },
 });
+
+// ---------------------------------------------------------------------------
+// Datos maestros para el dashboard
+// ---------------------------------------------------------------------------
+
+export const dashboardMaestroListaClientes = query({
+  args: {},
+  returns: v.array(
+    v.object({
+      clienteId: v.id("clientes"),
+      nombre: v.string(),
+      tipo: v.string(),
+      estado: v.string(),
+      ciudad: v.string(),
+      contactoPrincipal: v.string(),
+      telefono: v.string(),
+      email: v.string(),
+      nit: v.optional(v.string()),
+      direccion: v.string(),
+      notas: v.optional(v.string()),
+    }),
+  ),
+  handler: async (ctx) => {
+    const clientes = await ctx.db.query("clientes").take(300);
+    return clientes
+      .map((cliente) => ({
+        clienteId: cliente._id,
+        nombre: cliente.nombre,
+        tipo: cliente.tipo,
+        estado: cliente.estado,
+        ciudad: cliente.ciudad,
+        contactoPrincipal: cliente.contactoPrincipal,
+        telefono: cliente.telefono,
+        email: cliente.email,
+        nit: cliente.nit,
+        direccion: cliente.direccion,
+        notas: cliente.notas,
+      }))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre));
+  },
+});
+
+export const dashboardMaestroListaProgramas = query({
+  args: {},
+  returns: v.array(
+    v.object({
+      programaId: v.id("programasMovilidad"),
+      nombre: v.string(),
+      clienteId: v.id("clientes"),
+      clienteNombre: v.string(),
+      tipoServicio: v.string(),
+      estado: v.string(),
+      fechaInicio: v.string(),
+      fechaFin: v.optional(v.string()),
+      modalidadPago: v.string(),
+      descripcion: v.string(),
+      requiereReportePeriodico: v.boolean(),
+      reglasOperativas: v.optional(v.string()),
+    }),
+  ),
+  handler: async (ctx) => {
+    const programas = await ctx.db.query("programasMovilidad").take(300);
+    const filas = [];
+    for (const programa of programas) {
+      const cliente = await ctx.db.get(programa.clienteId);
+      filas.push({
+        programaId: programa._id,
+        nombre: programa.nombre,
+        clienteId: programa.clienteId,
+        clienteNombre: cliente?.nombre ?? "(sin cliente)",
+        tipoServicio: programa.tipoServicio,
+        estado: programa.estado,
+        fechaInicio: programa.fechaInicio,
+        fechaFin: programa.fechaFin,
+        modalidadPago: programa.modalidadPago,
+        descripcion: programa.descripcion,
+        requiereReportePeriodico: programa.requiereReportePeriodico,
+        reglasOperativas: programa.reglasOperativas,
+      });
+    }
+    return filas.sort((a, b) => a.nombre.localeCompare(b.nombre));
+  },
+});
+
+export const dashboardMaestroListaOperaciones = query({
+  args: {},
+  returns: v.array(
+    v.object({
+      operacionId: v.id("operaciones"),
+      nombre: v.string(),
+      programaId: v.id("programasMovilidad"),
+      programaNombre: v.string(),
+      clienteNombre: v.string(),
+      tipoOperacion: v.string(),
+      estado: v.string(),
+      fechaInicio: v.string(),
+      fechaFin: v.optional(v.string()),
+      nivelControl: v.string(),
+      ciudadBase: v.optional(v.string()),
+      zonaOperacion: v.optional(v.string()),
+      responsableOperativo: v.optional(v.string()),
+      requiereCentroControl: v.boolean(),
+    }),
+  ),
+  handler: async (ctx) => {
+    const operaciones = await ctx.db.query("operaciones").take(300);
+    const filas = [];
+    for (const operacion of operaciones) {
+      const programa = await ctx.db.get(operacion.programaId);
+      const cliente =
+        programa !== null ? await ctx.db.get(programa.clienteId) : null;
+      filas.push({
+        operacionId: operacion._id,
+        nombre: operacion.nombre,
+        programaId: operacion.programaId,
+        programaNombre: programa?.nombre ?? "(sin programa)",
+        clienteNombre: cliente?.nombre ?? "(sin cliente)",
+        tipoOperacion: operacion.tipoOperacion,
+        estado: operacion.estado,
+        fechaInicio: operacion.fechaInicio,
+        fechaFin: operacion.fechaFin,
+        nivelControl: operacion.nivelControl,
+        ciudadBase: operacion.ciudadBase,
+        zonaOperacion: operacion.zonaOperacion,
+        responsableOperativo: operacion.responsableOperativo,
+        requiereCentroControl: operacion.requiereCentroControl,
+      });
+    }
+    return filas.sort((a, b) => a.nombre.localeCompare(b.nombre));
+  },
+});
+
+export const dashboardMaestroListaRutas = query({
+  args: {},
+  returns: v.array(
+    v.object({
+      rutaId: v.id("rutas"),
+      nombre: v.string(),
+      programaId: v.id("programasMovilidad"),
+      programaNombre: v.string(),
+      tipoRuta: v.string(),
+      origenPrincipal: v.string(),
+      destinoPrincipal: v.string(),
+      activa: v.boolean(),
+      frecuencia: v.string(),
+      capacidadObjetivo: v.optional(v.number()),
+      reglasAbordaje: v.optional(v.string()),
+    }),
+  ),
+  handler: async (ctx) => {
+    const rutas = await ctx.db.query("rutas").take(300);
+    const filas = [];
+    for (const ruta of rutas) {
+      const programa = await ctx.db.get(ruta.programaId);
+      filas.push({
+        rutaId: ruta._id,
+        nombre: ruta.nombre,
+        programaId: ruta.programaId,
+        programaNombre: programa?.nombre ?? "(sin programa)",
+        tipoRuta: ruta.tipoRuta,
+        origenPrincipal: ruta.origenPrincipal,
+        destinoPrincipal: ruta.destinoPrincipal,
+        activa: ruta.activa,
+        frecuencia: ruta.frecuencia,
+        capacidadObjetivo: ruta.capacidadObjetivo,
+        reglasAbordaje: ruta.reglasAbordaje,
+      });
+    }
+    return filas.sort((a, b) => a.nombre.localeCompare(b.nombre));
+  },
+});
+
+export const dashboardMaestroListaParadas = query({
+  args: { rutaId: v.id("rutas") },
+  returns: v.array(
+    v.object({
+      paradaId: v.id("paradas"),
+      nombre: v.string(),
+      orden: v.number(),
+      direccionTexto: v.string(),
+      geo: v.optional(v.object({ lat: v.number(), lng: v.number() })),
+      ventanaInicio: v.optional(v.string()),
+      ventanaFin: v.optional(v.string()),
+      activa: v.boolean(),
+    }),
+  ),
+  handler: async (ctx, args) => {
+    const paradas = await ctx.db
+      .query("paradas")
+      .withIndex("by_ruta_orden", (q) => q.eq("rutaId", args.rutaId))
+      .collect();
+    return paradas.map((parada) => ({
+      paradaId: parada._id,
+      nombre: parada.nombre,
+      orden: parada.orden,
+      direccionTexto: parada.direccionTexto,
+      geo: parada.geo,
+      ventanaInicio: parada.ventanaInicio,
+      ventanaFin: parada.ventanaFin,
+      activa: parada.activa,
+    }));
+  },
+});

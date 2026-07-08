@@ -2596,3 +2596,645 @@ export const dashboardRegistrarIncidencia = mutation({
     );
   },
 });
+
+// ---------------------------------------------------------------------------
+// Mutations seguras para datos maestros del dashboard
+// ---------------------------------------------------------------------------
+
+async function crearClienteMaestroHelper(
+  ctx: MutationCtx,
+  actor: ActorAuditoria,
+  args: {
+    nombre: string;
+    tipo: Doc<"clientes">["tipo"];
+    nit?: string;
+    contactoPrincipal: string;
+    telefono: string;
+    email: string;
+    direccion: string;
+    ciudad: string;
+    notas?: string;
+  },
+): Promise<Id<"clientes">> {
+  const clienteId = await ctx.db.insert("clientes", { ...args, estado: "activo" });
+  await registrarAuditoria(ctx, actor, {
+    accion: "cliente.creado",
+    entidadTipo: "clientes",
+    entidadId: clienteId,
+    resultado: "ok",
+    detalle: args.nombre,
+  });
+  return clienteId;
+}
+
+async function actualizarClienteMaestroHelper(
+  ctx: MutationCtx,
+  actor: ActorAuditoria,
+  args: {
+    clienteId: Id<"clientes">;
+    nombre: string;
+    tipo: Doc<"clientes">["tipo"];
+    nit?: string;
+    contactoPrincipal: string;
+    telefono: string;
+    email: string;
+    direccion: string;
+    ciudad: string;
+    estado: Doc<"clientes">["estado"];
+    notas?: string;
+  },
+): Promise<void> {
+  const cliente = await ctx.db.get(args.clienteId);
+  if (cliente === null) throw new Error("Cliente no encontrado");
+  await ctx.db.patch(args.clienteId, {
+    nombre: args.nombre,
+    tipo: args.tipo,
+    nit: args.nit,
+    contactoPrincipal: args.contactoPrincipal,
+    telefono: args.telefono,
+    email: args.email,
+    direccion: args.direccion,
+    ciudad: args.ciudad,
+    estado: args.estado,
+    notas: args.notas,
+  });
+  await registrarAuditoria(ctx, actor, {
+    accion: "cliente.actualizado",
+    entidadTipo: "clientes",
+    entidadId: args.clienteId,
+    resultado: "ok",
+    detalle: args.nombre,
+  });
+}
+
+async function crearProgramaMaestroHelper(
+  ctx: MutationCtx,
+  actor: ActorAuditoria,
+  args: {
+    clienteId: Id<"clientes">;
+    tipoServicio: Doc<"programasMovilidad">["tipoServicio"];
+    nombre: string;
+    descripcion: string;
+    fechaInicio: string;
+    fechaFin?: string;
+    modalidadPago: Doc<"programasMovilidad">["modalidadPago"];
+    requiereReportePeriodico: boolean;
+    reglasOperativas?: string;
+  },
+): Promise<Id<"programasMovilidad">> {
+  const cliente = await ctx.db.get(args.clienteId);
+  if (cliente === null) throw new Error("Cliente no encontrado");
+  if (cliente.estado !== "activo") throw new Error("El cliente está inactivo");
+  const programaId = await ctx.db.insert("programasMovilidad", {
+    ...args,
+    estado: "borrador",
+  });
+  await registrarAuditoria(ctx, actor, {
+    accion: "programa.creado",
+    entidadTipo: "programasMovilidad",
+    entidadId: programaId,
+    resultado: "ok",
+    detalle: `${args.nombre} (${args.tipoServicio}) para ${cliente.nombre}`,
+  });
+  return programaId;
+}
+
+async function crearOperacionMaestroHelper(
+  ctx: MutationCtx,
+  actor: ActorAuditoria,
+  args: {
+    programaId: Id<"programasMovilidad">;
+    nombre: string;
+    tipoOperacion: Doc<"operaciones">["tipoOperacion"];
+    ciudadBase?: string;
+    zonaOperacion?: string;
+    fechaInicio: string;
+    fechaFin?: string;
+    responsableOperativo?: string;
+    nivelControl: Doc<"operaciones">["nivelControl"];
+    requiereCentroControl: boolean;
+  },
+): Promise<Id<"operaciones">> {
+  const programa = await ctx.db.get(args.programaId);
+  if (programa === null) throw new Error("Programa no encontrado");
+  if (programa.estado === "cerrado") throw new Error("El programa está cerrado");
+  const operacionId = await ctx.db.insert("operaciones", {
+    ...args,
+    estado: "planificada",
+  });
+  await registrarAuditoria(ctx, actor, {
+    accion: "operacion.creada",
+    entidadTipo: "operaciones",
+    entidadId: operacionId,
+    resultado: "ok",
+    detalle: args.nombre,
+  });
+  return operacionId;
+}
+
+async function actualizarOperacionMaestroHelper(
+  ctx: MutationCtx,
+  actor: ActorAuditoria,
+  args: {
+    operacionId: Id<"operaciones">;
+    nombre: string;
+    tipoOperacion: Doc<"operaciones">["tipoOperacion"];
+    ciudadBase?: string;
+    zonaOperacion?: string;
+    fechaInicio: string;
+    fechaFin?: string;
+    estado: Doc<"operaciones">["estado"];
+    responsableOperativo?: string;
+    nivelControl: Doc<"operaciones">["nivelControl"];
+    requiereCentroControl: boolean;
+  },
+): Promise<void> {
+  const operacion = await ctx.db.get(args.operacionId);
+  if (operacion === null) throw new Error("Operación no encontrada");
+  await ctx.db.patch(args.operacionId, {
+    nombre: args.nombre,
+    tipoOperacion: args.tipoOperacion,
+    ciudadBase: args.ciudadBase,
+    zonaOperacion: args.zonaOperacion,
+    fechaInicio: args.fechaInicio,
+    fechaFin: args.fechaFin,
+    estado: args.estado,
+    responsableOperativo: args.responsableOperativo,
+    nivelControl: args.nivelControl,
+    requiereCentroControl: args.requiereCentroControl,
+  });
+  await registrarAuditoria(ctx, actor, {
+    accion: "operacion.actualizada",
+    entidadTipo: "operaciones",
+    entidadId: args.operacionId,
+    resultado: "ok",
+    detalle: args.nombre,
+  });
+}
+
+async function crearRutaMaestroHelper(
+  ctx: MutationCtx,
+  actor: ActorAuditoria,
+  args: {
+    programaId: Id<"programasMovilidad">;
+    nombre: string;
+    tipoRuta: Doc<"rutas">["tipoRuta"];
+    origenPrincipal: string;
+    destinoPrincipal: string;
+    frecuencia: Doc<"rutas">["frecuencia"];
+    capacidadObjetivo?: number;
+    reglasAbordaje?: string;
+  },
+): Promise<Id<"rutas">> {
+  const programa = await ctx.db.get(args.programaId);
+  if (programa === null) throw new Error("Programa no encontrado");
+  const rutaId = await ctx.db.insert("rutas", { ...args, activa: true });
+  await registrarAuditoria(ctx, actor, {
+    accion: "ruta.creada",
+    entidadTipo: "rutas",
+    entidadId: rutaId,
+    resultado: "ok",
+    detalle: args.nombre,
+  });
+  return rutaId;
+}
+
+async function actualizarRutaMaestroHelper(
+  ctx: MutationCtx,
+  actor: ActorAuditoria,
+  args: {
+    rutaId: Id<"rutas">;
+    nombre: string;
+    tipoRuta: Doc<"rutas">["tipoRuta"];
+    origenPrincipal: string;
+    destinoPrincipal: string;
+    activa: boolean;
+    frecuencia: Doc<"rutas">["frecuencia"];
+    capacidadObjetivo?: number;
+    reglasAbordaje?: string;
+  },
+): Promise<void> {
+  const ruta = await ctx.db.get(args.rutaId);
+  if (ruta === null) throw new Error("Ruta no encontrada");
+  await ctx.db.patch(args.rutaId, {
+    nombre: args.nombre,
+    tipoRuta: args.tipoRuta,
+    origenPrincipal: args.origenPrincipal,
+    destinoPrincipal: args.destinoPrincipal,
+    activa: args.activa,
+    frecuencia: args.frecuencia,
+    capacidadObjetivo: args.capacidadObjetivo,
+    reglasAbordaje: args.reglasAbordaje,
+  });
+  await registrarAuditoria(ctx, actor, {
+    accion: "ruta.actualizada",
+    entidadTipo: "rutas",
+    entidadId: args.rutaId,
+    resultado: "ok",
+    detalle: args.nombre,
+  });
+}
+
+async function crearParadaMaestroHelper(
+  ctx: MutationCtx,
+  actor: ActorAuditoria,
+  args: {
+    rutaId: Id<"rutas">;
+    nombre: string;
+    orden: number;
+    direccionTexto: string;
+    geo?: { lat: number; lng: number };
+    ventanaInicio?: string;
+    ventanaFin?: string;
+  },
+): Promise<Id<"paradas">> {
+  const ruta = await ctx.db.get(args.rutaId);
+  if (ruta === null) throw new Error("Ruta no encontrada");
+  const paradaId = await ctx.db.insert("paradas", { ...args, activa: true });
+  await registrarAuditoria(ctx, actor, {
+    accion: "parada.creada",
+    entidadTipo: "paradas",
+    entidadId: paradaId,
+    resultado: "ok",
+    detalle: `${ruta.nombre} #${args.orden} ${args.nombre}`,
+  });
+  return paradaId;
+}
+
+async function actualizarParadaMaestroHelper(
+  ctx: MutationCtx,
+  actor: ActorAuditoria,
+  args: {
+    paradaId: Id<"paradas">;
+    nombre: string;
+    orden: number;
+    direccionTexto: string;
+    geo?: { lat: number; lng: number };
+    ventanaInicio?: string;
+    ventanaFin?: string;
+    activa: boolean;
+  },
+): Promise<void> {
+  const parada = await ctx.db.get(args.paradaId);
+  if (parada === null) throw new Error("Parada no encontrada");
+  await ctx.db.patch(args.paradaId, {
+    nombre: args.nombre,
+    orden: args.orden,
+    direccionTexto: args.direccionTexto,
+    geo: args.geo,
+    ventanaInicio: args.ventanaInicio,
+    ventanaFin: args.ventanaFin,
+    activa: args.activa,
+  });
+  await registrarAuditoria(ctx, actor, {
+    accion: "parada.actualizada",
+    entidadTipo: "paradas",
+    entidadId: args.paradaId,
+    resultado: "ok",
+    detalle: `#${args.orden} ${args.nombre}`,
+  });
+}
+
+export const dashboardMaestroCrearCliente = mutation({
+  args: {
+    actorUsuarioSistemaId: v.id("usuariosSistema"),
+    nombre: v.string(),
+    tipo: v.union(
+      v.literal("empresa"),
+      v.literal("institucion"),
+      v.literal("comunidad"),
+      v.literal("evento"),
+      v.literal("persona"),
+    ),
+    nit: v.optional(v.string()),
+    contactoPrincipal: v.string(),
+    telefono: v.string(),
+    email: v.string(),
+    direccion: v.string(),
+    ciudad: v.string(),
+    notas: v.optional(v.string()),
+  },
+  returns: v.id("clientes"),
+  handler: async (ctx, args) => {
+    await requerirPermiso(ctx, args.actorUsuarioSistemaId, PERMISOS.administrar);
+    return await crearClienteMaestroHelper(ctx, actorUsuario(args.actorUsuarioSistemaId), {
+      nombre: args.nombre,
+      tipo: args.tipo,
+      nit: args.nit,
+      contactoPrincipal: args.contactoPrincipal,
+      telefono: args.telefono,
+      email: args.email,
+      direccion: args.direccion,
+      ciudad: args.ciudad,
+      notas: args.notas,
+    });
+  },
+});
+
+export const dashboardMaestroActualizarCliente = mutation({
+  args: {
+    actorUsuarioSistemaId: v.id("usuariosSistema"),
+    clienteId: v.id("clientes"),
+    nombre: v.string(),
+    tipo: v.union(
+      v.literal("empresa"),
+      v.literal("institucion"),
+      v.literal("comunidad"),
+      v.literal("evento"),
+      v.literal("persona"),
+    ),
+    nit: v.optional(v.string()),
+    contactoPrincipal: v.string(),
+    telefono: v.string(),
+    email: v.string(),
+    direccion: v.string(),
+    ciudad: v.string(),
+    estado: v.union(v.literal("activo"), v.literal("inactivo")),
+    notas: v.optional(v.string()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await requerirPermiso(ctx, args.actorUsuarioSistemaId, PERMISOS.administrar);
+    await actualizarClienteMaestroHelper(ctx, actorUsuario(args.actorUsuarioSistemaId), {
+      clienteId: args.clienteId,
+      nombre: args.nombre,
+      tipo: args.tipo,
+      nit: args.nit,
+      contactoPrincipal: args.contactoPrincipal,
+      telefono: args.telefono,
+      email: args.email,
+      direccion: args.direccion,
+      ciudad: args.ciudad,
+      estado: args.estado,
+      notas: args.notas,
+    });
+    return null;
+  },
+});
+
+export const dashboardMaestroCrearPrograma = mutation({
+  args: {
+    actorUsuarioSistemaId: v.id("usuariosSistema"),
+    clienteId: v.id("clientes"),
+    tipoServicio: v.union(
+      v.literal("puntual"),
+      v.literal("recurrente"),
+      v.literal("gestorValidado"),
+      v.literal("evento"),
+      v.literal("comunidad"),
+    ),
+    nombre: v.string(),
+    descripcion: v.string(),
+    fechaInicio: v.string(),
+    fechaFin: v.optional(v.string()),
+    modalidadPago: v.union(v.literal("prepago"), v.literal("credito"), v.literal("mixto")),
+    requiereReportePeriodico: v.boolean(),
+    reglasOperativas: v.optional(v.string()),
+  },
+  returns: v.id("programasMovilidad"),
+  handler: async (ctx, args) => {
+    await requerirPermiso(ctx, args.actorUsuarioSistemaId, PERMISOS.administrar);
+    return await crearProgramaMaestroHelper(ctx, actorUsuario(args.actorUsuarioSistemaId), {
+      clienteId: args.clienteId,
+      tipoServicio: args.tipoServicio,
+      nombre: args.nombre,
+      descripcion: args.descripcion,
+      fechaInicio: args.fechaInicio,
+      fechaFin: args.fechaFin,
+      modalidadPago: args.modalidadPago,
+      requiereReportePeriodico: args.requiereReportePeriodico,
+      reglasOperativas: args.reglasOperativas,
+    });
+  },
+});
+
+export const dashboardMaestroCrearOperacion = mutation({
+  args: {
+    actorUsuarioSistemaId: v.id("usuariosSistema"),
+    programaId: v.id("programasMovilidad"),
+    nombre: v.string(),
+    tipoOperacion: v.union(
+      v.literal("puntual"),
+      v.literal("recurrente"),
+      v.literal("gestorValidado"),
+      v.literal("evento"),
+      v.literal("comunidad"),
+    ),
+    ciudadBase: v.optional(v.string()),
+    zonaOperacion: v.optional(v.string()),
+    fechaInicio: v.string(),
+    fechaFin: v.optional(v.string()),
+    responsableOperativo: v.optional(v.string()),
+    nivelControl: v.union(
+      v.literal("basico"),
+      v.literal("controlado"),
+      v.literal("comandoOperativo"),
+    ),
+    requiereCentroControl: v.boolean(),
+  },
+  returns: v.id("operaciones"),
+  handler: async (ctx, args) => {
+    await requerirPermiso(ctx, args.actorUsuarioSistemaId, PERMISOS.administrar);
+    return await crearOperacionMaestroHelper(ctx, actorUsuario(args.actorUsuarioSistemaId), {
+      programaId: args.programaId,
+      nombre: args.nombre,
+      tipoOperacion: args.tipoOperacion,
+      ciudadBase: args.ciudadBase,
+      zonaOperacion: args.zonaOperacion,
+      fechaInicio: args.fechaInicio,
+      fechaFin: args.fechaFin,
+      responsableOperativo: args.responsableOperativo,
+      nivelControl: args.nivelControl,
+      requiereCentroControl: args.requiereCentroControl,
+    });
+  },
+});
+
+export const dashboardMaestroActualizarOperacion = mutation({
+  args: {
+    actorUsuarioSistemaId: v.id("usuariosSistema"),
+    operacionId: v.id("operaciones"),
+    nombre: v.string(),
+    tipoOperacion: v.union(
+      v.literal("puntual"),
+      v.literal("recurrente"),
+      v.literal("gestorValidado"),
+      v.literal("evento"),
+      v.literal("comunidad"),
+    ),
+    ciudadBase: v.optional(v.string()),
+    zonaOperacion: v.optional(v.string()),
+    fechaInicio: v.string(),
+    fechaFin: v.optional(v.string()),
+    estado: v.union(
+      v.literal("planificada"),
+      v.literal("enCurso"),
+      v.literal("pausada"),
+      v.literal("cerrada"),
+      v.literal("cancelada"),
+    ),
+    responsableOperativo: v.optional(v.string()),
+    nivelControl: v.union(
+      v.literal("basico"),
+      v.literal("controlado"),
+      v.literal("comandoOperativo"),
+    ),
+    requiereCentroControl: v.boolean(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await requerirPermiso(ctx, args.actorUsuarioSistemaId, PERMISOS.administrar);
+    await actualizarOperacionMaestroHelper(ctx, actorUsuario(args.actorUsuarioSistemaId), {
+      operacionId: args.operacionId,
+      nombre: args.nombre,
+      tipoOperacion: args.tipoOperacion,
+      ciudadBase: args.ciudadBase,
+      zonaOperacion: args.zonaOperacion,
+      fechaInicio: args.fechaInicio,
+      fechaFin: args.fechaFin,
+      estado: args.estado,
+      responsableOperativo: args.responsableOperativo,
+      nivelControl: args.nivelControl,
+      requiereCentroControl: args.requiereCentroControl,
+    });
+    return null;
+  },
+});
+
+export const dashboardMaestroCrearRuta = mutation({
+  args: {
+    actorUsuarioSistemaId: v.id("usuariosSistema"),
+    programaId: v.id("programasMovilidad"),
+    nombre: v.string(),
+    tipoRuta: v.union(
+      v.literal("laboral"),
+      v.literal("institucional"),
+      v.literal("comunidad"),
+      v.literal("evento"),
+      v.literal("intermunicipal"),
+      v.literal("otra"),
+    ),
+    origenPrincipal: v.string(),
+    destinoPrincipal: v.string(),
+    frecuencia: v.union(
+      v.literal("unica"),
+      v.literal("diaria"),
+      v.literal("semanal"),
+      v.literal("personalizada"),
+    ),
+    capacidadObjetivo: v.optional(v.number()),
+    reglasAbordaje: v.optional(v.string()),
+  },
+  returns: v.id("rutas"),
+  handler: async (ctx, args) => {
+    await requerirPermiso(ctx, args.actorUsuarioSistemaId, PERMISOS.administrar);
+    return await crearRutaMaestroHelper(ctx, actorUsuario(args.actorUsuarioSistemaId), {
+      programaId: args.programaId,
+      nombre: args.nombre,
+      tipoRuta: args.tipoRuta,
+      origenPrincipal: args.origenPrincipal,
+      destinoPrincipal: args.destinoPrincipal,
+      frecuencia: args.frecuencia,
+      capacidadObjetivo: args.capacidadObjetivo,
+      reglasAbordaje: args.reglasAbordaje,
+    });
+  },
+});
+
+export const dashboardMaestroActualizarRuta = mutation({
+  args: {
+    actorUsuarioSistemaId: v.id("usuariosSistema"),
+    rutaId: v.id("rutas"),
+    nombre: v.string(),
+    tipoRuta: v.union(
+      v.literal("laboral"),
+      v.literal("institucional"),
+      v.literal("comunidad"),
+      v.literal("evento"),
+      v.literal("intermunicipal"),
+      v.literal("otra"),
+    ),
+    origenPrincipal: v.string(),
+    destinoPrincipal: v.string(),
+    activa: v.boolean(),
+    frecuencia: v.union(
+      v.literal("unica"),
+      v.literal("diaria"),
+      v.literal("semanal"),
+      v.literal("personalizada"),
+    ),
+    capacidadObjetivo: v.optional(v.number()),
+    reglasAbordaje: v.optional(v.string()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await requerirPermiso(ctx, args.actorUsuarioSistemaId, PERMISOS.administrar);
+    await actualizarRutaMaestroHelper(ctx, actorUsuario(args.actorUsuarioSistemaId), {
+      rutaId: args.rutaId,
+      nombre: args.nombre,
+      tipoRuta: args.tipoRuta,
+      origenPrincipal: args.origenPrincipal,
+      destinoPrincipal: args.destinoPrincipal,
+      activa: args.activa,
+      frecuencia: args.frecuencia,
+      capacidadObjetivo: args.capacidadObjetivo,
+      reglasAbordaje: args.reglasAbordaje,
+    });
+    return null;
+  },
+});
+
+export const dashboardMaestroCrearParada = mutation({
+  args: {
+    actorUsuarioSistemaId: v.id("usuariosSistema"),
+    rutaId: v.id("rutas"),
+    nombre: v.string(),
+    orden: v.number(),
+    direccionTexto: v.string(),
+    geo: v.optional(v.object({ lat: v.number(), lng: v.number() })),
+    ventanaInicio: v.optional(v.string()),
+    ventanaFin: v.optional(v.string()),
+  },
+  returns: v.id("paradas"),
+  handler: async (ctx, args) => {
+    await requerirPermiso(ctx, args.actorUsuarioSistemaId, PERMISOS.administrar);
+    return await crearParadaMaestroHelper(ctx, actorUsuario(args.actorUsuarioSistemaId), {
+      rutaId: args.rutaId,
+      nombre: args.nombre,
+      orden: args.orden,
+      direccionTexto: args.direccionTexto,
+      geo: args.geo,
+      ventanaInicio: args.ventanaInicio,
+      ventanaFin: args.ventanaFin,
+    });
+  },
+});
+
+export const dashboardMaestroActualizarParada = mutation({
+  args: {
+    actorUsuarioSistemaId: v.id("usuariosSistema"),
+    paradaId: v.id("paradas"),
+    nombre: v.string(),
+    orden: v.number(),
+    direccionTexto: v.string(),
+    geo: v.optional(v.object({ lat: v.number(), lng: v.number() })),
+    ventanaInicio: v.optional(v.string()),
+    ventanaFin: v.optional(v.string()),
+    activa: v.boolean(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await requerirPermiso(ctx, args.actorUsuarioSistemaId, PERMISOS.administrar);
+    await actualizarParadaMaestroHelper(ctx, actorUsuario(args.actorUsuarioSistemaId), {
+      paradaId: args.paradaId,
+      nombre: args.nombre,
+      orden: args.orden,
+      direccionTexto: args.direccionTexto,
+      geo: args.geo,
+      ventanaInicio: args.ventanaInicio,
+      ventanaFin: args.ventanaFin,
+      activa: args.activa,
+    });
+    return null;
+  },
+});

@@ -8,6 +8,7 @@ export type Ruta =
   | { vista: "incidencias" }
   | { vista: "telegram" }
   | { vista: "disponibilidad" }
+  | { vista: "maestros" }
   | { vista: "control" };
 
 export type VistaPrincipal = Exclude<Ruta["vista"], "servicio">;
@@ -28,6 +29,8 @@ function leerHash(): Ruta {
       return { vista: "telegram" };
     case "disponibilidad":
       return { vista: "disponibilidad" };
+    case "maestros":
+      return { vista: "maestros" };
     case "control":
       return { vista: "control" };
     default:
